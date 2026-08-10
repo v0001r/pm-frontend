@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, FolderKanban, KeyRound, Mail, Pencil, Settings, User, UserCheck, UserX } from "lucide-react";
 import { RequireRole } from "@/components/guard";
+import { InternalUserFormSheet } from "@/components/internal-user-form-sheet";
 import { EmptyState, KpiCard, SectionCard, StatusBadge, TableSkeleton } from "@/components/primitives";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsPanelTrigger } from "@/components/ui/tabs";
@@ -20,6 +21,9 @@ import { formatDate } from "@/lib/store";
 
 export const Route = createFileRoute("/admin/users/$userId/")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>) => ({
+    edit: search["edit"] === true || search["edit"] === "true",
+  }),
   component: () => (
     <RequireRole roles={["Admin"]}>
       <UserDetailPage />
@@ -29,8 +33,18 @@ export const Route = createFileRoute("/admin/users/$userId/")({
 
 function UserDetailPage() {
   const { userId } = Route.useParams();
+  const routeSearch = Route.useSearch();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("general");
+  const [editOpen, setEditOpen] = useState(false);
+
+  useEffect(() => {
+    if (routeSearch.edit) {
+      setEditOpen(true);
+      navigate({ to: "/admin/users/$userId", params: { userId }, search: {}, replace: true });
+    }
+  }, [routeSearch.edit, navigate, userId]);
 
   const overviewQuery = useQuery({
     queryKey: ["internal-user-overview", userId],
@@ -115,11 +129,9 @@ function UserDetailPage() {
                 Back
               </Link>
             </Button>
-            <Button size="sm" asChild>
-              <Link to="/admin/users/$userId/edit" params={{ userId }}>
-                <Pencil className="size-4" />
-                Edit User
-              </Link>
+            <Button size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="size-4" />
+              Edit User
             </Button>
           </div>
         </div>
@@ -248,6 +260,14 @@ function UserDetailPage() {
           </SectionCard>
         </TabsContent>
       </Tabs>
+
+      <InternalUserFormSheet
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        mode="edit"
+        userId={userId}
+        onSaved={() => overviewQuery.refetch()}
+      />
     </div>
   );
 }

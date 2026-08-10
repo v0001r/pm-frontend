@@ -89,7 +89,7 @@ function ForgotPassword() {
                   <AlertDescription>{apiError}</AlertDescription>
                 </Alert>
               )}
-              <FormField label="Email address" htmlFor="email" error={errors.email}>
+              <FormField label="Email address" htmlFor="email" error={errors.email} required>
                 <Input
                   id="email"
                   value={email}

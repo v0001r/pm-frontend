@@ -1,0 +1,1 @@
+import{o as e}from"./useStore-Bwb3bsWW.js";import{a as t}from"./guard-CFa2CXgB.js";import{t as n}from"./project-overview-fQ1Xvui_.js";import{l as r}from"./index-CJvM7YzO.js";var i=e();function a(){let{projectId:e}=r.useParams();return(0,i.jsx)(n,{projectId:e,mode:`client`})}var o=()=>(0,i.jsx)(t,{roles:[`Client`],children:(0,i.jsx)(a,{})});export{o as component};

@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import { Eye, EyeOff, Check, X } from "lucide-react";
+import { fieldInputClass, FieldLabel } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { fieldInputClass } from "@/components/form-field";
 
 export const passwordRules = [
   { label: "At least 8 characters", test: (v: string) => v.length >= 8 },
@@ -22,6 +21,7 @@ export function PasswordField({
   onChange,
   autoComplete = "new-password",
   error,
+  required = false,
 }: {
   id: string;
   label: string;
@@ -29,13 +29,14 @@ export function PasswordField({
   onChange: (v: string) => void;
   autoComplete?: string;
   error?: string;
+  required?: boolean;
 }) {
   const [show, setShow] = useState(false);
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={id} className={error ? "text-destructive" : undefined}>
+      <FieldLabel htmlFor={id} className={error ? "text-destructive" : undefined} required={required}>
         {label}
-      </Label>
+      </FieldLabel>
       <div className="relative">
         <Input
           id={id}

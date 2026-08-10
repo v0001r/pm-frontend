@@ -176,12 +176,12 @@ function ProfilePage() {
                 }
               }}
             >
-              <PasswordField id="current" label="Current password" value={current} onChange={setCurrent} autoComplete="current-password" />
+              <PasswordField id="current" label="Current password" value={current} onChange={setCurrent} autoComplete="current-password" required />
               <div className="grid gap-1.5">
-                <PasswordField id="new" label="New password" value={password} onChange={setPassword} autoComplete="new-password" />
+                <PasswordField id="new" label="New password" value={password} onChange={setPassword} autoComplete="new-password" required />
                 <PasswordStrength value={password} />
               </div>
-              <PasswordField id="confirm" label="Confirm new password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
+              <PasswordField id="confirm" label="Confirm new password" value={confirm} onChange={setConfirm} autoComplete="new-password" required />
               <div className="flex justify-end">
                 <Button size="sm" type="submit" disabled={changing}>
                   {changing ? "Updating…" : "Update password"}

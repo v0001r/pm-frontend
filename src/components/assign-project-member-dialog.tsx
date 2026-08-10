@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldLabel } from "@/components/form-field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getApiErrorMessage } from "@/lib/api";
 import { assignProjectMember } from "@/lib/projects";
@@ -117,7 +117,7 @@ export function AssignProjectMemberDialog({
 
         <div className="grid gap-4 py-2">
           <div className="grid gap-1.5">
-            <Label>Employee</Label>
+            <FieldLabel required>Employee</FieldLabel>
             <Select value={employeeId} onValueChange={setEmployeeId} disabled={employeesQuery.isLoading}>
               <SelectTrigger>
                 <SelectValue placeholder={employeesQuery.isLoading ? "Loading employees..." : "Select employee"} />
@@ -140,7 +140,7 @@ export function AssignProjectMemberDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
-              <Label htmlFor="internal-hours">Internal hours</Label>
+              <FieldLabel htmlFor="internal-hours" required>Internal hours</FieldLabel>
               <Input
                 id="internal-hours"
                 type="number"
@@ -151,7 +151,7 @@ export function AssignProjectMemberDialog({
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="external-hours">External hours</Label>
+              <FieldLabel htmlFor="external-hours" required>External hours</FieldLabel>
               <Input
                 id="external-hours"
                 type="number"

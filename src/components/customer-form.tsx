@@ -106,7 +106,7 @@ export function CustomerForm({
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Company name" error={errors.companyName} className="sm:col-span-2">
+        <FormField label="Company name" error={errors.companyName} className="sm:col-span-2" required>
           <Input
             value={companyName}
             onChange={(e) => {
@@ -164,7 +164,7 @@ export function CustomerForm({
         <div className="rounded-md border p-4">
           <p className="mb-3 text-sm font-medium">Primary contact</p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Name" error={errors.contactName}>
+            <FormField label="Name" error={errors.contactName} required>
               <Input
                 value={contactName}
                 onChange={(e) => {
@@ -178,7 +178,7 @@ export function CustomerForm({
               <Label>Job title</Label>
               <Input value={contactTitle} onChange={(e) => setContactTitle(e.target.value)} />
             </div>
-            <FormField label="Email" error={errors.contactEmail}>
+            <FormField label="Email" error={errors.contactEmail} required>
               <Input
                 value={contactEmail}
                 onChange={(e) => {

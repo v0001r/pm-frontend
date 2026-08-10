@@ -77,7 +77,7 @@ export function ContactForm({
         }
       }}
     >
-      <FormField label="Name" htmlFor="contact-name" error={errors.name}>
+      <FormField label="Name" htmlFor="contact-name" error={errors.name} required>
         <Input
           id="contact-name"
           value={name}
@@ -99,7 +99,7 @@ export function ContactForm({
         />
       </div>
 
-      <FormField label="Email" htmlFor="contact-email" error={errors.email}>
+      <FormField label="Email" htmlFor="contact-email" error={errors.email} required>
         <Input
           id="contact-email"
           value={email}

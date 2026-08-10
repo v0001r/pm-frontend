@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AdminOrStaffRoute } from "@/components/guard";
-import { CreateTicketForm } from "@/components/create-ticket-form";
 
 interface NewTicketSearch {
   projectId?: string;
@@ -19,18 +19,22 @@ export const Route = createFileRoute("/admin/tickets/new")({
   }),
   component: () => (
     <AdminOrStaffRoute>
-      <AdminNewTicket />
+      <NewTicketRedirect />
     </AdminOrStaffRoute>
   ),
 });
 
-function AdminNewTicket() {
+function NewTicketRedirect() {
+  const navigate = useNavigate();
   const { projectId } = Route.useSearch();
-  return (
-    <CreateTicketForm
-      initialProjectId={projectId}
-      cancelTo="/admin/tickets"
-      successTo="/admin/tickets/$ticketId"
-    />
-  );
+
+  useEffect(() => {
+    navigate({
+      to: "/admin/tickets",
+      search: { action: "create", ...(projectId ? { projectId } : {}) },
+      replace: true,
+    });
+  }, [navigate, projectId]);
+
+  return null;
 }

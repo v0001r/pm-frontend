@@ -1,7 +1,7 @@
 import { S as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
 import { c as homeFor, f as useAuth, n as Button } from "./button-DTh0UNAt.mjs";
 import { v as Link } from "../_libs/@tanstack/react-router+[...].mjs";
-import { y as ShieldAlert } from "../_libs/lucide-react.mjs";
+import { v as ShieldAlert } from "../_libs/lucide-react.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/unauthorized-D-f9oFLS.js
 var import_jsx_runtime = require_jsx_runtime();
 function UnauthorizedPage() {

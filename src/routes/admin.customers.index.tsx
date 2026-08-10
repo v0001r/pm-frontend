@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Eye, Pencil, Plus, Users } from "lucide-react";
@@ -26,6 +26,7 @@ import {
   useListingFilters,
 } from "@/components/listing-page";
 import { EmptyState, StatusBadge, TableSkeleton } from "@/components/primitives";
+import { CustomerFormSheet } from "@/components/customer-form-sheet";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { getApiErrorMessage } from "@/lib/api";
@@ -33,8 +34,17 @@ import { fetchCustomers } from "@/lib/customers";
 import { formatDate } from "@/lib/store";
 import type { AccountStatus, InvitationStatus } from "@/lib/types";
 
+interface CustomerSearch {
+  action?: "create";
+  edit?: string;
+}
+
 export const Route = createFileRoute("/admin/customers/")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>): CustomerSearch => ({
+    action: search["action"] === "create" ? "create" : undefined,
+    edit: typeof search["edit"] === "string" ? search["edit"] : undefined,
+  }),
   head: () => ({ meta: [{ title: "Customers — Helpdesk Admin" }] }),
   component: () => (
     <RequireRole roles={["Admin", "Staff"]}>
@@ -50,11 +60,26 @@ const FILTER_DEFAULTS = { status: ANY, invitationStatus: ANY };
 const TABLE_COLUMNS = ["Customer ID", "Company", "Primary contact", "Status", "Invitation", "Portal", "Created", "Action"] as const;
 
 function CustomersPage() {
+  const navigate = useNavigate();
+  const routeSearch = Route.useSearch();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const { applied: filters, draft, patchDraft, apply, clear, open, setOpen, activeCount } = useListingFilters(FILTER_DEFAULTS);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(PAGE_SIZE);
+
+  useEffect(() => {
+    if (routeSearch.action === "create") {
+      setCreateOpen(true);
+      navigate({ to: "/admin/customers", search: {}, replace: true });
+    }
+    if (routeSearch.edit) {
+      setEditId(routeSearch.edit);
+      navigate({ to: "/admin/customers", search: {}, replace: true });
+    }
+  }, [routeSearch.action, routeSearch.edit, navigate]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -107,10 +132,8 @@ function CustomersPage() {
         onFilterClear={clearFilters}
         onExport={() => toast.info("Export coming soon.")}
         primaryAction={
-          <Button size="sm" className="rounded-md" asChild>
-            <Link to="/admin/customers/new">
-              <Plus className="size-4" /> New customer
-            </Link>
+          <Button size="sm" className="rounded-md" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" /> New customer
           </Button>
         }
         filterContent={
@@ -190,10 +213,8 @@ function CustomersPage() {
                             <Eye className="size-4" /> View
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/customers/$customerId/edit" params={{ customerId: customer._id }}>
-                            <Pencil className="size-4" /> Edit
-                          </Link>
+                        <DropdownMenuItem onClick={() => setEditId(customer._id)}>
+                          <Pencil className="size-4" /> Edit
                         </DropdownMenuItem>
                       </DataTableRowMenu>
                     </DataTableActions>
@@ -215,6 +236,18 @@ function CustomersPage() {
           )}
         </>
       )}
+
+      <CustomerFormSheet open={createOpen} onOpenChange={setCreateOpen} mode="create" />
+      {editId ? (
+        <CustomerFormSheet
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditId(null);
+          }}
+          mode="edit"
+          customerId={editId}
+        />
+      ) : null}
     </ListingPage>
   );
 }

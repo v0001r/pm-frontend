@@ -78,7 +78,7 @@ function ActivatePage() {
                 <AlertDescription>{apiError}</AlertDescription>
               </Alert>
             )}
-            <FormField label="New password" htmlFor="password" error={errors.password}>
+            <FormField label="New password" htmlFor="password" error={errors.password} required>
               <Input
                 id="password"
                 type="password"
@@ -90,7 +90,7 @@ function ActivatePage() {
                 className={fieldInputClass(errors.password)}
               />
             </FormField>
-            <FormField label="Confirm password" htmlFor="confirm" error={errors.confirm}>
+            <FormField label="Confirm password" htmlFor="confirm" error={errors.confirm} required>
               <Input
                 id="confirm"
                 type="password"

@@ -126,7 +126,7 @@ function LoginPage() {
                 <AlertDescription>{apiError}</AlertDescription>
               </Alert>
             )}
-            <FormField label="Email address" htmlFor="email" error={errors.email}>
+            <FormField label="Email address" htmlFor="email" error={errors.email} required>
               <Input
                 id="email"
                 autoComplete="email"
@@ -139,7 +139,7 @@ function LoginPage() {
                 className={fieldInputClass(errors.email)}
               />
             </FormField>
-            <FormField label="Password" htmlFor="password" error={errors.password}>
+            <FormField label="Password" htmlFor="password" error={errors.password} required>
               <div className="relative">
                 <Input
                   id="password"

@@ -1,0 +1,1 @@
+import{o as e,s as t,u as n}from"./useStore-Bwb3bsWW.js";import{S as r}from"./dist-DB0D2Skk.js";import{a as i}from"./guard-CFa2CXgB.js";var a=n(t()),o=e();function s(){let e=r();return(0,a.useEffect)(()=>{e({to:`/admin/users`,search:{action:`create`},replace:!0})},[e]),null}var c=()=>(0,o.jsx)(i,{roles:[`Admin`],children:(0,o.jsx)(s,{})});export{c as component};

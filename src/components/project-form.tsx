@@ -172,7 +172,7 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Project name" htmlFor="project-name" error={errors.name} className="sm:col-span-2">
+        <FormField label="Project name" htmlFor="project-name" error={errors.name} className="sm:col-span-2" required>
           <Input
             id="project-name"
             value={values.name}
@@ -183,7 +183,7 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
           />
         </FormField>
 
-        <FormField label="Customer" htmlFor="customer-search" error={errors.customerId} className="sm:col-span-2">
+        <FormField label="Customer" htmlFor="customer-search" error={errors.customerId} className="sm:col-span-2" required>
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -213,7 +213,7 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
           </Select>
         </FormField>
 
-        <FormField label="Start date" htmlFor="start-date" error={errors.startDate}>
+        <FormField label="Start date" htmlFor="start-date" error={errors.startDate} required>
           <Input
             id="start-date"
             type="date"
@@ -233,7 +233,7 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
           />
         </FormField>
 
-        <FormField label="Maximum hours" htmlFor="max-hours" error={errors.maxHours}>
+        <FormField label="Maximum hours" htmlFor="max-hours" error={errors.maxHours} required>
           <Input
             id="max-hours"
             type="number"

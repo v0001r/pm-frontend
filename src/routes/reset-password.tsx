@@ -107,6 +107,7 @@ function ResetPassword() {
                   clearError("password");
                 }}
                 error={errors.password}
+                required
               />
               <PasswordStrength value={pw} />
               <PasswordField
@@ -118,6 +119,7 @@ function ResetPassword() {
                   clearError("confirm");
                 }}
                 error={errors.confirm}
+                required
               />
               <Button type="submit" disabled={loading || !token}>
                 {loading && <Loader2 className="size-4 animate-spin" />}

@@ -497,7 +497,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             <div className="ml-auto flex items-center gap-1 sm:ml-0">
               <Button asChild size="sm" className="hidden h-9 sm:inline-flex">
-                <Link to={user?.role === "Client" ? "/portal/tickets/new" : "/admin/tickets/new"}>
+                <Link to={user?.role === "Client" ? "/portal/tickets/new" : "/admin/tickets"} search={user?.role === "Client" ? undefined : { action: "create" }}>
                   <Plus className="size-4" /> New ticket
                 </Link>
               </Button>

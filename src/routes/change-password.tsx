@@ -77,7 +77,7 @@ function ChangePasswordPage() {
                 <AlertDescription>{apiError}</AlertDescription>
               </Alert>
             )}
-            <FormField label="Current / temporary password" htmlFor="current" error={errors.currentPassword}>
+            <FormField label="Current / temporary password" htmlFor="current" error={errors.currentPassword} required>
               <Input
                 id="current"
                 type="password"
@@ -89,7 +89,7 @@ function ChangePasswordPage() {
                 className={fieldInputClass(errors.currentPassword)}
               />
             </FormField>
-            <FormField label="New password" htmlFor="new" error={errors.newPassword}>
+            <FormField label="New password" htmlFor="new" error={errors.newPassword} required>
               <Input
                 id="new"
                 type="password"
@@ -101,7 +101,7 @@ function ChangePasswordPage() {
                 className={fieldInputClass(errors.newPassword)}
               />
             </FormField>
-            <FormField label="Confirm new password" htmlFor="confirm" error={errors.confirm}>
+            <FormField label="Confirm new password" htmlFor="confirm" error={errors.confirm} required>
               <Input
                 id="confirm"
                 type="password"

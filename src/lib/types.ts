@@ -235,6 +235,7 @@ export interface ProjectQueryParams {
   page?: number;
   limit?: number;
   search?: string;
+  customerId?: string;
   status?: ProjectStatus;
   sortBy?: "name" | "startDate" | "endDate" | "createdAt";
   sortOrder?: "asc" | "desc";

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Eye, Plus } from "lucide-react";
@@ -26,6 +26,7 @@ import {
   useListingFilters,
 } from "@/components/listing-page";
 import { EmptyState, PriorityBadge, SlaBadge, StatusBadge, TableSkeleton } from "@/components/primitives";
+import { TicketFormSheet } from "@/components/ticket-form-sheet";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { getApiErrorMessage } from "@/lib/api";
@@ -50,6 +51,7 @@ interface TicketSearch {
   client?: string;
   agent?: string;
   projectId?: string;
+  action?: "create";
 }
 
 export const Route = createFileRoute("/admin/tickets/")({
@@ -61,6 +63,7 @@ export const Route = createFileRoute("/admin/tickets/")({
     client: typeof search["client"] === "string" ? search["client"] : undefined,
     agent: typeof search["agent"] === "string" ? search["agent"] : undefined,
     projectId: typeof search["projectId"] === "string" ? search["projectId"] : undefined,
+    action: search["action"] === "create" ? "create" : undefined,
   }),
   head: () => ({
     meta: [
@@ -101,7 +104,9 @@ const TABLE_COLUMNS = [
 ] as const;
 
 function TicketsPage() {
+  const navigate = useNavigate();
   const initial = Route.useSearch();
+  const [createOpen, setCreateOpen] = useState(false);
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const { applied: filters, draft, patchDraft, apply, clear, open, setOpen, activeCount } = useListingFilters(
@@ -121,6 +126,17 @@ function TicketsPage() {
     const timer = window.setTimeout(() => setDebouncedQ(q.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [q]);
+
+  useEffect(() => {
+    if (initial.action === "create") {
+      setCreateOpen(true);
+      navigate({
+        to: "/admin/tickets",
+        search: initial.projectId ? { projectId: initial.projectId } : {},
+        replace: true,
+      });
+    }
+  }, [initial.action, initial.projectId, navigate]);
 
   useEffect(() => setPage(1), [debouncedQ, filters.status, filters.priority, filters.category, filters.client, filters.agent, filters.sla, filters.sort, limit]);
 
@@ -236,10 +252,8 @@ function TicketsPage() {
         onFilterClear={clearFilters}
         onExport={exportCsv}
         primaryAction={
-          <Button asChild size="sm" className="rounded-md">
-            <Link to="/admin/tickets/new">
-              <Plus className="size-4" /> New ticket
-            </Link>
+          <Button size="sm" className="rounded-md" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" /> New ticket
           </Button>
         }
         filterContent={
@@ -330,6 +344,13 @@ function TicketsPage() {
           />
         </>
       )}
+
+      <TicketFormSheet
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        {...(initial.projectId ? { initialProjectId: initial.projectId } : {})}
+        onSaved={() => ticketsQuery.refetch()}
+      />
     </ListingPage>
   );
 }

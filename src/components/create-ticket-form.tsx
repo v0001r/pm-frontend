@@ -21,11 +21,21 @@ import { PRIORITIES, SLA_MATRIX, SETTABLE_STATUSES, fullName, type Priority, typ
 
 interface CreateTicketFormProps {
   initialProjectId?: string;
-  cancelTo: string;
-  successTo: "/admin/tickets/$ticketId" | "/portal/tickets/$ticketId";
+  cancelTo?: string;
+  successTo?: "/admin/tickets/$ticketId" | "/portal/tickets/$ticketId";
+  embedded?: boolean;
+  onCancel?: () => void;
+  onSuccess?: (ticketId: string) => void;
 }
 
-export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: CreateTicketFormProps) {
+export function CreateTicketForm({
+  initialProjectId,
+  cancelTo = "/admin/tickets",
+  successTo = "/admin/tickets/$ticketId",
+  embedded = false,
+  onCancel,
+  onSuccess,
+}: CreateTicketFormProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isClient = user?.role === "Client";
@@ -99,7 +109,11 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
     },
     onSuccess: (ticket) => {
       toast.success(`Ticket ${ticket.number} submitted.`);
-      navigate({ to: successTo, params: { ticketId: ticket._id } });
+      if (onSuccess) {
+        onSuccess(ticket._id);
+      } else {
+        navigate({ to: successTo, params: { ticketId: ticket._id } });
+      }
     },
     onError: (error) => {
       toast.error(getApiErrorMessage(error, "Failed to submit ticket"));
@@ -118,21 +132,11 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
   const loading =
     projectsQuery.isLoading || categoriesQuery.isLoading || (isStaffOrAdmin && employeesQuery.isLoading);
 
-  return (
-    <>
-      <PageHeader
-        title="Create ticket"
-        description={
-          isClient
-            ? "Select a project and describe the issue. Our team will respond within your SLA."
-            : "Log a support request for any project you can access."
-        }
-      />
-      <SectionCard>
-        <form
-          className="grid gap-4 p-4"
-          noValidate
-          onSubmit={(event) => {
+  const form = (
+    <form
+      className={embedded ? "grid gap-4" : "grid gap-4 p-4"}
+      noValidate
+      onSubmit={(event) => {
             event.preventDefault();
             const validation = validateForm(createTicketSchema, {
               subject,
@@ -148,7 +152,7 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
             mutation.mutate();
           }}
         >
-          <FormField label="Subject" htmlFor="subject" error={errors["subject"]}>
+          <FormField label="Subject" htmlFor="subject" error={errors["subject"]} required>
             <Input
               id="subject"
               value={subject}
@@ -190,7 +194,7 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Project" error={errors["projectId"]}>
+            <FormField label="Project" error={errors["projectId"]} required>
               <Select
                 value={projectId}
                 onValueChange={(value) => {
@@ -218,7 +222,7 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
               </Select>
             </FormField>
 
-            <FormField label="Category" error={errors["categoryId"]}>
+            <FormField label="Category" error={errors["categoryId"]} required>
               <Select
                 value={categoryId}
                 onValueChange={(value) => {
@@ -283,6 +287,7 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
             htmlFor="description"
             error={errors["description"]}
             hint={`${description.length}/4000 characters`}
+            required
           >
             <Textarea
               id="description"
@@ -336,7 +341,12 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => navigate({ to: cancelTo })}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => (onCancel ? onCancel() : navigate({ to: cancelTo }))}
+            >
               Cancel
             </Button>
             <Button
@@ -348,7 +358,23 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
             </Button>
           </div>
         </form>
-      </SectionCard>
+  );
+
+  if (embedded) {
+    return form;
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Create ticket"
+        description={
+          isClient
+            ? "Select a project and describe the issue. Our team will respond within your SLA."
+            : "Log a support request for any project you can access."
+        }
+      />
+      <SectionCard>{form}</SectionCard>
     </>
   );
 }

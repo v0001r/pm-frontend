@@ -1,28 +1,41 @@
-import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, Building2, FolderKanban, Info, Mail, Pencil, Ticket, Users } from "lucide-react";
 import { RequireRole } from "@/components/guard";
 import { CustomerContactsTab } from "@/components/customer-contacts-tab";
-import { EmptyState, KpiCard, SectionCard, StatusBadge, TableSkeleton } from "@/components/primitives";
+import { CustomerFormSheet } from "@/components/customer-form-sheet";
+import { CustomerProjectsTab } from "@/components/customer-projects-tab";
+import { CustomerTicketsTab } from "@/components/customer-tickets-tab";
+import { SectionCard, StatusBadge, TableSkeleton } from "@/components/primitives";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsPanelTrigger } from "@/components/ui/tabs";
 import { getApiErrorMessage } from "@/lib/api";
 import { isAdmin, isStaff } from "@/lib/auth";
 import {
   fetchCustomerOverview,
-  fetchCustomerProjects,
-  fetchCustomerTickets,
   resendCustomerInvitation,
   updateCustomerStatus,
 } from "@/lib/customers";
 import { formatDate } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 import type { AccountStatus } from "@/lib/types";
+
+type CustomerTab = "contacts" | "info" | "projects" | "tickets";
+
+const customerTabs: { id: CustomerTab; label: string; icon: typeof Users }[] = [
+  { id: "contacts", label: "Contacts", icon: Users },
+  { id: "info", label: "Information", icon: Info },
+  { id: "projects", label: "Projects", icon: FolderKanban },
+  { id: "tickets", label: "Tickets", icon: Ticket },
+];
 
 export const Route = createFileRoute("/admin/customers/$customerId/")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>) => ({
+    edit: search["edit"] === true || search["edit"] === "true",
+  }),
   component: () => (
     <RequireRole roles={["Admin", "Staff"]}>
       <CustomerDetailPage />
@@ -32,25 +45,23 @@ export const Route = createFileRoute("/admin/customers/$customerId/")({
 
 function CustomerDetailPage() {
   const { customerId } = Route.useParams();
+  const routeSearch = Route.useSearch();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState("contacts");
+  const [tab, setTab] = useState<CustomerTab>("contacts");
+  const [editOpen, setEditOpen] = useState(false);
+
+  useEffect(() => {
+    if (routeSearch.edit) {
+      setEditOpen(true);
+      navigate({ to: "/admin/customers/$customerId", params: { customerId }, search: {}, replace: true });
+    }
+  }, [routeSearch.edit, navigate, customerId]);
 
   const overviewQuery = useQuery({
     queryKey: ["customer-overview", customerId],
     queryFn: () => fetchCustomerOverview(customerId),
-  });
-
-  const projectsQuery = useQuery({
-    queryKey: ["customer-projects", customerId],
-    queryFn: () => fetchCustomerProjects(customerId, { page: 1, limit: 10 }),
-    enabled: tab === "projects",
-  });
-
-  const ticketsQuery = useQuery({
-    queryKey: ["customer-tickets", customerId],
-    queryFn: () => fetchCustomerTickets(customerId, { page: 1, limit: 10 }),
-    enabled: tab === "tickets",
   });
 
   const statusMutation = useMutation({
@@ -72,12 +83,12 @@ function CustomerDetailPage() {
     return <TableSkeleton rows={6} cols={4} />;
   }
 
-  const { customer, summary } = overviewQuery.data;
+  const { customer } = overviewQuery.data;
 
   return (
     <div className="flex flex-col gap-5">
-      <section className="rounded-md border border-border/60 bg-card p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <section className="overflow-hidden rounded-md border border-border/60 bg-card shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4 p-5">
           <div className="flex min-w-0 items-start gap-4">
             <span className="grid size-14 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm">
               <Building2 className="size-7" />
@@ -103,11 +114,9 @@ function CustomerDetailPage() {
                 Back
               </Link>
             </Button>
-            <Button size="sm" asChild>
-              <Link to="/admin/customers/$customerId/edit" params={{ customerId }}>
-                <Pencil className="size-4" />
-                Edit Customer
-              </Link>
+            <Button size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="size-4" />
+              Edit Customer
             </Button>
             {isAdmin(user?.role) && (
               <>
@@ -129,108 +138,70 @@ function CustomerDetailPage() {
             )}
           </div>
         </div>
+
+        <div className="overflow-x-auto border-t border-border/60">
+          <nav className="flex min-w-max items-center gap-1 px-2">
+            {customerTabs.map((item) => {
+              const Icon = item.icon;
+              const active = tab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setTab(item.id)}
+                  className={cn(
+                    "inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                    active
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Projects" value={summary.totalProjects} />
-        <KpiCard label="Tickets" value={summary.totalTickets} />
-        <KpiCard label="Open tickets" value={summary.openTickets} tone="warning" />
-        <KpiCard label="Closed tickets" value={summary.closedTickets} tone="success" />
-      </div>
+      {tab === "contacts" && (
+        <CustomerContactsTab customerId={customerId} canManage={isStaff(user?.role)} />
+      )}
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsPanelTrigger
-            value="contacts"
-            icon={<Users />}
-            title="Contacts"
-            description="Customer contacts"
-          />
-          <TabsPanelTrigger
-            value="info"
-            icon={<Info />}
-            title="Information"
-            description="Company details"
-          />
-          <TabsPanelTrigger
-            value="projects"
-            icon={<FolderKanban />}
-            title="Projects"
-            description="Customer projects"
-          />
-          <TabsPanelTrigger
-            value="tickets"
-            icon={<Ticket />}
-            title="Tickets"
-            description="Support tickets"
-          />
-        </TabsList>
+      {tab === "info" && (
+        <SectionCard title="Customer information">
+          <dl className="grid gap-3 p-4 text-sm sm:grid-cols-2">
+            {[
+              ["Address", customer.address || "—"],
+              ["City", customer.city || "—"],
+              ["State", customer.state || "—"],
+              ["Postal code", customer.postalCode || "—"],
+              ["Country", customer.country || "—"],
+              ["Phone", customer.phone || "—"],
+              ["Website", customer.website || "—"],
+              ["Created", formatDate(customer.createdAt)],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="mt-1 font-medium">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </SectionCard>
+      )}
 
-        <TabsContent value="contacts">
-          <CustomerContactsTab customerId={customerId} canManage={isStaff(user?.role)} />
-        </TabsContent>
+      {tab === "projects" && <CustomerProjectsTab customerId={customerId} />}
 
-        <TabsContent value="info">
-          <SectionCard title="Customer information">
-            <dl className="grid gap-3 p-4 text-sm sm:grid-cols-2">
-              {[
-                ["Address", customer.address || "—"],
-                ["City", customer.city || "—"],
-                ["State", customer.state || "—"],
-                ["Postal code", customer.postalCode || "—"],
-                ["Country", customer.country || "—"],
-                ["Phone", customer.phone || "—"],
-                ["Website", customer.website || "—"],
-                ["Created", formatDate(customer.createdAt)],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="mt-1 font-medium">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </SectionCard>
-        </TabsContent>
+      {tab === "tickets" && <CustomerTicketsTab customerId={customerId} />}
 
-        <TabsContent value="projects">
-          <SectionCard>
-            {(projectsQuery.data?.items ?? []).length === 0 ? (
-              <EmptyState title="No projects" description="Projects for this customer will appear here." />
-            ) : (
-              <ul className="divide-y">
-                {(projectsQuery.data?.items ?? []).map((project) => (
-                  <li key={String(project._id)} className="flex items-center justify-between px-4 py-3 text-sm">
-                    <div>
-                      <p className="font-medium">{String(project.name)}</p>
-                      <p className="text-xs text-muted-foreground">{String(project.projectId)}</p>
-                    </div>
-                    <Button size="sm" variant="ghost" asChild>
-                      <Link to="/admin/projects/$projectId" params={{ projectId: String(project._id) }}>View</Link>
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SectionCard>
-        </TabsContent>
-
-        <TabsContent value="tickets">
-          <SectionCard>
-            {(ticketsQuery.data?.items ?? []).length === 0 ? (
-              <EmptyState title="No tickets" />
-            ) : (
-              <ul className="divide-y">
-                {(ticketsQuery.data?.items ?? []).map((ticket) => (
-                  <li key={String(ticket._id)} className="px-4 py-3 text-sm">
-                    <p className="font-medium">{String(ticket.subject)}</p>
-                    <p className="text-xs text-muted-foreground">{String(ticket.number)} · {String(ticket.status)}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SectionCard>
-        </TabsContent>
-      </Tabs>
+      <CustomerFormSheet
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        mode="edit"
+        customerId={customerId}
+        onSaved={() => overviewQuery.refetch()}
+      />
     </div>
   );
 }

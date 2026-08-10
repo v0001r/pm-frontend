@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Briefcase, Shield, User } from "lucide-react";
 import { FormActions } from "@/components/form-actions";
 import { fieldInputClass, FormField } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsPanelTrigger } from "@/components/ui/tabs";
 import { fetchDepartments, fetchDesignations, fetchTeams } from "@/lib/org";
 import { internalUserSchema, validateForm } from "@/lib/form-validation";
 import { fetchEmployees } from "@/lib/users";
@@ -20,6 +18,18 @@ interface InternalUserFormProps {
   submitLabel?: string;
 }
 
+function FormSection({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-4 rounded-md border border-border/60 p-4">
+      <div>
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        {description ? <p className="mt-0.5 text-xs text-muted-foreground">{description}</p> : null}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
+    </div>
+  );
+}
+
 export function InternalUserForm({
   initial,
   mode,
@@ -27,7 +37,6 @@ export function InternalUserForm({
   onCancel,
   submitLabel = mode === "create" ? "Create user" : "Save changes",
 }: InternalUserFormProps) {
-  const [tab, setTab] = useState("general");
   const [firstName, setFirstName] = useState(initial?.firstName ?? "");
   const [lastName, setLastName] = useState(initial?.lastName ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
@@ -91,7 +100,6 @@ export function InternalUserForm({
         });
         if (!validation.success) {
           setErrors(validation.errors);
-          setTab("general");
           return;
         }
         setErrors({});
@@ -139,181 +147,158 @@ export function InternalUserForm({
         }
       }}
     >
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsPanelTrigger
-            value="general"
-            icon={<User />}
-            title="General"
-            description="Name, email and contact"
+      <FormSection title="Personal information" description="Name, email and contact details">
+        <FormField label="First name" error={errors.firstName} required>
+          <Input
+            value={firstName}
+            onChange={(e) => {
+              setFirstName(e.target.value);
+              clearError("firstName");
+            }}
+            className={fieldInputClass(errors.firstName)}
           />
-          <TabsPanelTrigger
-            value="job"
-            icon={<Briefcase />}
-            title="Job"
-            description="Department and reporting"
+        </FormField>
+        <FormField label="Last name" error={errors.lastName} required>
+          <Input
+            value={lastName}
+            onChange={(e) => {
+              setLastName(e.target.value);
+              clearError("lastName");
+            }}
+            className={fieldInputClass(errors.lastName)}
           />
-          <TabsPanelTrigger
-            value="account"
-            icon={<Shield />}
-            title="Account"
-            description="Role, status and access"
+        </FormField>
+        <FormField label="Email" error={errors.email} required>
+          <Input
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              clearError("email");
+            }}
+            className={fieldInputClass(errors.email)}
           />
-        </TabsList>
+        </FormField>
+        <FormField label="Mobile" error={errors.phone} required>
+          <Input
+            value={phone}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              clearError("phone");
+            }}
+            className={fieldInputClass(errors.phone)}
+          />
+        </FormField>
+        <div className="grid gap-1.5 sm:col-span-2">
+          <Label>Address</Label>
+          <Input value={address} onChange={(e) => setAddress(e.target.value)} />
+        </div>
+        <div className="grid gap-1.5">
+          <Label>Gender</Label>
+          <Select value={gender || "none"} onValueChange={(v) => setGender(v === "none" ? "" : v)}>
+            <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Not specified</SelectItem>
+              {["Male", "Female", "Other", "Prefer not to say"].map((g) => (
+                <SelectItem key={g} value={g}>{g}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </FormSection>
 
-        <TabsContent value="general" className="mt-4 grid gap-4 sm:grid-cols-2">
-          <FormField label="First name" error={errors.firstName}>
-            <Input
-              value={firstName}
-              onChange={(e) => {
-                setFirstName(e.target.value);
-                clearError("firstName");
-              }}
-              className={fieldInputClass(errors.firstName)}
-            />
-          </FormField>
-          <FormField label="Last name" error={errors.lastName}>
-            <Input
-              value={lastName}
-              onChange={(e) => {
-                setLastName(e.target.value);
-                clearError("lastName");
-              }}
-              className={fieldInputClass(errors.lastName)}
-            />
-          </FormField>
-          <FormField label="Email" error={errors.email}>
-            <Input
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                clearError("email");
-              }}
-              className={fieldInputClass(errors.email)}
-            />
-          </FormField>
-          <FormField label="Mobile" error={errors.phone}>
-            <Input
-              value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value);
-                clearError("phone");
-              }}
-              className={fieldInputClass(errors.phone)}
-            />
-          </FormField>
+      <FormSection title="Job details" description="Department, team and reporting structure">
+        <div className="grid gap-1.5">
+          <Label>Employee ID</Label>
+          <Input value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} placeholder="Auto-generated if empty" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label>Date of joining</Label>
+          <Input type="date" value={dateOfJoining} onChange={(e) => setDateOfJoining(e.target.value)} />
+        </div>
+        <div className="grid gap-1.5">
+          <Label>Department</Label>
+          <Select value={departmentId} onValueChange={setDepartmentId}>
+            <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+            <SelectContent>
+              {(departmentsQuery.data ?? []).map((d) => (
+                <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label>Designation</Label>
+          <Select value={designationId} onValueChange={setDesignationId} disabled={!departmentId}>
+            <SelectTrigger><SelectValue placeholder="Select designation" /></SelectTrigger>
+            <SelectContent>
+              {(designationsQuery.data ?? []).map((d) => (
+                <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label>Team</Label>
+          <Select value={teamId} onValueChange={setTeamId} disabled={!departmentId}>
+            <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
+            <SelectContent>
+              {(teamsQuery.data ?? []).map((t) => (
+                <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label>Reporting manager</Label>
+          <Select value={reportingManagerId || "none"} onValueChange={(v) => setReportingManagerId(v === "none" ? "" : v)}>
+            <SelectTrigger><SelectValue placeholder="Select manager" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              {(managersQuery.data ?? [])
+                .filter((m) => m.id !== initial?.id && m._id !== initial?._id)
+                .map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name ?? `${m.firstName} ${m.lastName}`}</SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </FormSection>
+
+      <FormSection title="Account" description="Role, status and access">
+        <div className="grid gap-1.5">
+          <Label>Role</Label>
+          <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Admin">Admin</SelectItem>
+              <SelectItem value="Staff">Staff</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label>Status</Label>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {["Active", "Inactive", "Suspended"].map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {mode === "create" && (
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label>Address</Label>
-            <Input value={address} onChange={(e) => setAddress(e.target.value)} />
+            <Label>Temporary password</Label>
+            <Input
+              type="password"
+              value={temporaryPassword}
+              onChange={(e) => setTemporaryPassword(e.target.value)}
+              placeholder="Auto-generated if empty"
+            />
+            <p className="text-xs text-muted-foreground">An invitation email will be sent automatically.</p>
           </div>
-          <div className="grid gap-1.5">
-            <Label>Gender</Label>
-            <Select value={gender || "none"} onValueChange={(v) => setGender(v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Not specified</SelectItem>
-                {["Male", "Female", "Other", "Prefer not to say"].map((g) => (
-                  <SelectItem key={g} value={g}>{g}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="job" className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <Label>Employee ID</Label>
-            <Input value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} placeholder="Auto-generated if empty" />
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Date of joining</Label>
-            <Input type="date" value={dateOfJoining} onChange={(e) => setDateOfJoining(e.target.value)} />
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Department</Label>
-            <Select value={departmentId} onValueChange={setDepartmentId}>
-              <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-              <SelectContent>
-                {(departmentsQuery.data ?? []).map((d) => (
-                  <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Designation</Label>
-            <Select value={designationId} onValueChange={setDesignationId} disabled={!departmentId}>
-              <SelectTrigger><SelectValue placeholder="Select designation" /></SelectTrigger>
-              <SelectContent>
-                {(designationsQuery.data ?? []).map((d) => (
-                  <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Team</Label>
-            <Select value={teamId} onValueChange={setTeamId} disabled={!departmentId}>
-              <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
-              <SelectContent>
-                {(teamsQuery.data ?? []).map((t) => (
-                  <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Reporting manager</Label>
-            <Select value={reportingManagerId || "none"} onValueChange={(v) => setReportingManagerId(v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Select manager" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {(managersQuery.data ?? [])
-                  .filter((m) => m.id !== initial?.id && m._id !== initial?._id)
-                  .map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name ?? `${m.firstName} ${m.lastName}`}</SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="account" className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <Label>Role</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Admin">Admin</SelectItem>
-                <SelectItem value="Staff">Staff</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {["Active", "Inactive", "Suspended"].map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {mode === "create" && (
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label>Temporary password</Label>
-              <Input
-                type="password"
-                value={temporaryPassword}
-                onChange={(e) => setTemporaryPassword(e.target.value)}
-                placeholder="Auto-generated if empty"
-              />
-              <p className="text-xs text-muted-foreground">An invitation email will be sent automatically.</p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+        )}
+      </FormSection>
 
       <FormActions submitLabel={submitLabel} submitting={submitting} onCancel={onCancel} />
     </form>

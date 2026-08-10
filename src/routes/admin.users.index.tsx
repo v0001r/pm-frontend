@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Eye, Pencil, Plus, Users } from "lucide-react";
@@ -26,6 +26,7 @@ import {
   useListingFilters,
 } from "@/components/listing-page";
 import { EmptyState, StatusBadge, TableSkeleton } from "@/components/primitives";
+import { InternalUserFormSheet } from "@/components/internal-user-form-sheet";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { getApiErrorMessage } from "@/lib/api";
@@ -39,8 +40,17 @@ import {
 import { fetchDepartments } from "@/lib/org";
 import type { AccountStatus, InternalUser, PaginatedResult, Role } from "@/lib/types";
 
+interface UserSearch {
+  action?: "create";
+  edit?: string;
+}
+
 export const Route = createFileRoute("/admin/users/")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>): UserSearch => ({
+    action: search["action"] === "create" ? "create" : undefined,
+    edit: typeof search["edit"] === "string" ? search["edit"] : undefined,
+  }),
   head: () => ({ meta: [{ title: "Users — Helpdesk Admin" }] }),
   component: () => (
     <RequireRole roles={["Admin"]}>
@@ -56,7 +66,11 @@ const FILTER_DEFAULTS = { status: ANY, role: ANY, departmentId: ANY };
 const TABLE_COLUMNS = ["Employee ID", "Employee", "Designation", "Department", "Team", "Email", "Status", "Action"] as const;
 
 function UsersPage() {
+  const navigate = useNavigate();
+  const routeSearch = Route.useSearch();
   const queryClient = useQueryClient();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const { applied: filters, draft, patchDraft, apply, clear, open, setOpen, activeCount } = useListingFilters(FILTER_DEFAULTS);
@@ -67,6 +81,17 @@ function UsersPage() {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    if (routeSearch.action === "create") {
+      setCreateOpen(true);
+      navigate({ to: "/admin/users", search: {}, replace: true });
+    }
+    if (routeSearch.edit) {
+      setEditId(routeSearch.edit);
+      navigate({ to: "/admin/users", search: {}, replace: true });
+    }
+  }, [routeSearch.action, routeSearch.edit, navigate]);
 
   useEffect(() => setPage(1), [debouncedSearch, filters.status, filters.role, filters.departmentId, limit]);
 
@@ -161,10 +186,8 @@ function UsersPage() {
         onFilterClear={clearFilters}
         onExport={exportUsers}
         primaryAction={
-          <Button size="sm" className="rounded-md" asChild>
-            <Link to="/admin/users/new">
-              <Plus className="size-4" /> New user
-            </Link>
+          <Button size="sm" className="rounded-md" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" /> New user
           </Button>
         }
         filterContent={
@@ -246,10 +269,8 @@ function UsersPage() {
                             <Eye className="size-4" /> View
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin/users/$userId/edit" params={{ userId: user.id ?? user._id! }}>
-                            <Pencil className="size-4" /> Edit
-                          </Link>
+                        <DropdownMenuItem onClick={() => setEditId(user.id ?? user._id!)}>
+                          <Pencil className="size-4" /> Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -288,6 +309,24 @@ function UsersPage() {
           )}
         </>
       )}
+
+      <InternalUserFormSheet
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        mode="create"
+        onSaved={(userId) => navigate({ to: "/admin/users/$userId", params: { userId } })}
+      />
+      {editId ? (
+        <InternalUserFormSheet
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditId(null);
+          }}
+          mode="edit"
+          userId={editId}
+          onSaved={() => queryClient.invalidateQueries({ queryKey: ["internal-users"] })}
+        />
+      ) : null}
     </ListingPage>
   );
 }

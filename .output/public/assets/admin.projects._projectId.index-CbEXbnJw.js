@@ -1,1 +1,0 @@
-import{o as e}from"./useStore-Bwb3bsWW.js";import{a as t}from"./guard-woxs3yvE.js";import{t as n}from"./project-overview-DsRG_I7V.js";import{i as r}from"./index-DQ_ov_Bq.js";var i=e();function a(){let{projectId:e}=r.useParams();return(0,i.jsx)(n,{projectId:e,mode:`admin`})}var o=()=>(0,i.jsx)(t,{roles:[`Admin`,`Staff`],children:(0,i.jsx)(a,{})});export{o as component};

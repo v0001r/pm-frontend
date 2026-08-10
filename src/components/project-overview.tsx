@@ -19,6 +19,8 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { LucideProps } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 import { AssignProjectMemberDialog } from "@/components/assign-project-member-dialog";
+import { ProjectFormSheet } from "@/components/project-form-sheet";
+import { TicketFormSheet } from "@/components/ticket-form-sheet";
 import {
   DataTableActions,
   DataTableIconButton,
@@ -137,7 +139,15 @@ function groupTicketStatuses(items: { status: TicketStatus }[]) {
   return Object.entries(groups).map(([name, value]) => ({ name, value }));
 }
 
-export function ProjectOverview({ projectId, mode }: { projectId: string; mode: "admin" | "client" }) {
+export function ProjectOverview({
+  projectId,
+  mode,
+  initialEditOpen = false,
+}: {
+  projectId: string;
+  mode: "admin" | "client";
+  initialEditOpen?: boolean;
+}) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const canEdit = mode === "admin" && (user?.role === "Admin" || user?.role === "Staff");
@@ -145,6 +155,8 @@ export function ProjectOverview({ projectId, mode }: { projectId: string; mode: 
   const isClient = mode === "client";
   const backTo = isClient ? "/portal/projects" : "/admin/projects";
   const [assignOpen, setAssignOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(initialEditOpen);
+  const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<ProjectMember | null>(null);
 
   const projectQuery = useQuery({
@@ -268,11 +280,9 @@ export function ProjectOverview({ projectId, mode }: { projectId: string; mode: 
               </Button>
             ) : null}
             {canEdit ? (
-              <Button size="sm" asChild>
-                <Link to="/admin/projects/$projectId/edit" params={{ projectId }}>
-                  <Pencil className="size-4" />
-                  Edit Project
-                </Link>
+              <Button size="sm" onClick={() => setEditOpen(true)}>
+                <Pencil className="size-4" />
+                Edit Project
               </Button>
             ) : null}
           </div>
@@ -360,11 +370,9 @@ export function ProjectOverview({ projectId, mode }: { projectId: string; mode: 
 
           {canEdit ? (
             <div className="flex flex-wrap gap-2 border-t border-border/60 px-5 py-3">
-              <Button size="sm" variant="outline" asChild>
-                <Link to="/admin/tickets/new" search={{ projectId }}>
-                  <Ticket className="size-4" />
-                  Add ticket
-                </Link>
+              <Button size="sm" variant="outline" onClick={() => setCreateTicketOpen(true)}>
+                <Ticket className="size-4" />
+                Add ticket
               </Button>
               {isAdmin ? (
                 <Button size="sm" variant="outline" onClick={() => setAssignOpen(true)}>
@@ -608,6 +616,30 @@ export function ProjectOverview({ projectId, mode }: { projectId: string; mode: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {canEdit ? (
+        <>
+          <ProjectFormSheet
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            mode="edit"
+            projectId={projectId}
+            onSaved={() => {
+              projectQuery.refetch();
+              queryClient.invalidateQueries({ queryKey: ["project-tickets-summary", projectId] });
+            }}
+          />
+          <TicketFormSheet
+            open={createTicketOpen}
+            onOpenChange={setCreateTicketOpen}
+            initialProjectId={projectId}
+            onSaved={() => {
+              ticketsQuery.refetch();
+              projectQuery.refetch();
+            }}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

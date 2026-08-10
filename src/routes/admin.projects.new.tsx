@@ -1,7 +1,6 @@
+import { useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { RequireRole } from "@/components/guard";
-import { PageHeader, SectionCard } from "@/components/primitives";
-import { ProjectForm } from "@/components/project-form";
 
 export const Route = createFileRoute("/admin/projects/new")({
   ssr: false,
@@ -13,27 +12,17 @@ export const Route = createFileRoute("/admin/projects/new")({
   }),
   component: () => (
     <RequireRole roles={["Admin", "Staff"]}>
-      <NewProjectPage />
+      <NewProjectRedirect />
     </RequireRole>
   ),
 });
 
-function NewProjectPage() {
+function NewProjectRedirect() {
   const navigate = useNavigate();
 
-  return (
-    <>
-      <PageHeader
-        title="New project"
-        description="Create a project for a customer and define its schedule, hours and status."
-      />
-      <SectionCard>
-        <ProjectForm
-          mode="create"
-          onCancel={() => navigate({ to: "/admin/projects" })}
-          onSuccess={() => navigate({ to: "/admin/projects" })}
-        />
-      </SectionCard>
-    </>
-  );
+  useEffect(() => {
+    navigate({ to: "/admin/projects", search: { action: "create" }, replace: true });
+  }, [navigate]);
+
+  return null;
 }

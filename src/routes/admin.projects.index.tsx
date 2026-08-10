@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Eye, FolderKanban, Pencil, Plus } from "lucide-react";
@@ -27,6 +27,7 @@ import {
   useListingFilters,
 } from "@/components/listing-page";
 import { EmptyState, ProjectStatusBadge, TableSkeleton } from "@/components/primitives";
+import { ProjectFormSheet } from "@/components/project-form-sheet";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAuth, isStaff } from "@/lib/auth";
@@ -40,6 +41,8 @@ interface ProjectSearch {
   status?: string;
   sort?: string;
   q?: string;
+  action?: "create";
+  edit?: string;
 }
 
 export const Route = createFileRoute("/admin/projects/")({
@@ -49,6 +52,8 @@ export const Route = createFileRoute("/admin/projects/")({
     status: typeof search["status"] === "string" ? search["status"] : undefined,
     sort: typeof search["sort"] === "string" ? search["sort"] : undefined,
     q: typeof search["q"] === "string" ? search["q"] : undefined,
+    action: search["action"] === "create" ? "create" : undefined,
+    edit: typeof search["edit"] === "string" ? search["edit"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -89,8 +94,12 @@ const TABLE_COLUMNS = [
 ] as const;
 
 function ProjectsPage() {
+  const navigate = useNavigate();
+  const routeSearch = Route.useSearch();
   const { user } = useAuth();
   const canManage = isStaff(user?.role);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
@@ -102,6 +111,17 @@ function ProjectsPage() {
     const timer = window.setTimeout(() => setDebouncedQ(q.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [q]);
+
+  useEffect(() => {
+    if (routeSearch.action === "create") {
+      setCreateOpen(true);
+      navigate({ to: "/admin/projects", search: {}, replace: true });
+    }
+    if (routeSearch.edit) {
+      setEditId(routeSearch.edit);
+      navigate({ to: "/admin/projects", search: {}, replace: true });
+    }
+  }, [routeSearch.action, routeSearch.edit, navigate]);
 
   useEffect(() => {
     setPage(1);
@@ -163,11 +183,9 @@ function ProjectsPage() {
           onExport={() => toast.info("Export coming soon.")}
           primaryAction={
             canManage ? (
-              <Button size="sm" className="rounded-md" asChild>
-                <Link to="/admin/projects/new">
-                  <Plus className="size-4" />
-                  New project
-                </Link>
+              <Button size="sm" className="rounded-md" onClick={() => setCreateOpen(true)}>
+                <Plus className="size-4" />
+                New project
               </Button>
             ) : undefined
           }
@@ -208,11 +226,9 @@ function ProjectsPage() {
             }
             action={
               canManage ? (
-                <Button size="sm" asChild>
-                  <Link to="/admin/projects/new">
-                    <Plus className="size-4" />
-                    New project
-                  </Link>
+                <Button size="sm" onClick={() => setCreateOpen(true)}>
+                  <Plus className="size-4" />
+                  New project
                 </Button>
               ) : undefined
             }
@@ -285,10 +301,8 @@ function ProjectsPage() {
                               <Eye className="size-4" /> View
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link to="/admin/projects/$projectId/edit" params={{ projectId: project._id }}>
-                              <Pencil className="size-4" /> Edit
-                            </Link>
+                          <DropdownMenuItem onClick={() => setEditId(project._id)}>
+                            <Pencil className="size-4" /> Edit
                           </DropdownMenuItem>
                         </DataTableRowMenu>
                       </DataTableActions>
@@ -321,6 +335,18 @@ function ProjectsPage() {
           </Button>
         </div>
       )}
+
+      <ProjectFormSheet open={createOpen} onOpenChange={setCreateOpen} mode="create" />
+      {editId ? (
+        <ProjectFormSheet
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditId(null);
+          }}
+          mode="edit"
+          projectId={editId}
+        />
+      ) : null}
     </>
   );
 }
