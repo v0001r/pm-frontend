@@ -1,1 +1,0 @@
-import{g as e}from"./button-DUef3aWA.js";async function t(){let{data:t}=await e.get(`/categories`);return t.data.filter(e=>e.active)}export{t};

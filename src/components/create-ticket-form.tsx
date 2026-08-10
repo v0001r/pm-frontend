@@ -4,12 +4,14 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Paperclip, X } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/primitives";
+import { fieldInputClass, FormField } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getApiErrorMessage } from "@/lib/api";
+import { createTicketSchema, validateForm } from "@/lib/form-validation";
 import { useAuth } from "@/lib/auth";
 import { fetchCategories } from "@/lib/categories";
 import { fetchProjects } from "@/lib/projects";
@@ -37,6 +39,7 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
   const [description, setDescription] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
   const [files, setFiles] = useState<{ name: string; size: string }[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const projectsQuery = useQuery({
     queryKey: ["projects", { createTicket: true, role: user?.role }],
@@ -82,18 +85,6 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
       if (!user) {
         throw new Error("You must be signed in to create a ticket");
       }
-      if (!projectId) {
-        throw new Error("Select a project for this ticket");
-      }
-      if (!categoryId) {
-        throw new Error("Select a category for this ticket");
-      }
-      if (subject.trim().length < 5) {
-        throw new Error("Subject must be at least 5 characters");
-      }
-      if (description.trim().length < 20) {
-        throw new Error("Please describe the issue in at least 20 characters");
-      }
 
       return createTicket({
         subject: subject.trim(),
@@ -115,6 +106,15 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
     },
   });
 
+  function clearError(field: string) {
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
   const loading =
     projectsQuery.isLoading || categoriesQuery.isLoading || (isStaffOrAdmin && employeesQuery.isLoading);
 
@@ -131,22 +131,36 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
       <SectionCard>
         <form
           className="grid gap-4 p-4"
+          noValidate
           onSubmit={(event) => {
             event.preventDefault();
+            const validation = validateForm(createTicketSchema, {
+              subject,
+              projectId,
+              categoryId,
+              description,
+            });
+            if (!validation.success) {
+              setErrors(validation.errors);
+              return;
+            }
+            setErrors({});
             mutation.mutate();
           }}
         >
-          <div className="grid gap-1.5">
-            <Label htmlFor="subject">Subject</Label>
+          <FormField label="Subject" htmlFor="subject" error={errors["subject"]}>
             <Input
               id="subject"
               value={subject}
-              onChange={(event) => setSubject(event.target.value)}
+              onChange={(event) => {
+                setSubject(event.target.value);
+                clearError("subject");
+              }}
               placeholder="Short summary of the issue"
               maxLength={120}
-              required
+              className={fieldInputClass(errors["subject"])}
             />
-          </div>
+          </FormField>
 
           {isStaffOrAdmin ? (
             <div className="grid gap-1.5">
@@ -176,10 +190,16 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label>Project</Label>
-              <Select value={projectId} onValueChange={setProjectId} disabled={loading || projects.length === 0}>
-                <SelectTrigger>
+            <FormField label="Project" error={errors["projectId"]}>
+              <Select
+                value={projectId}
+                onValueChange={(value) => {
+                  setProjectId(value);
+                  clearError("projectId");
+                }}
+                disabled={loading || projects.length === 0}
+              >
+                <SelectTrigger className={fieldInputClass(errors["projectId"])}>
                   <SelectValue placeholder={loading ? "Loading projects..." : "Select project"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -196,12 +216,18 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
                   )}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
 
-            <div className="grid gap-1.5">
-              <Label>Category</Label>
-              <Select value={categoryId} onValueChange={setCategoryId} disabled={loading || categories.length === 0}>
-                <SelectTrigger>
+            <FormField label="Category" error={errors["categoryId"]}>
+              <Select
+                value={categoryId}
+                onValueChange={(value) => {
+                  setCategoryId(value);
+                  clearError("categoryId");
+                }}
+                disabled={loading || categories.length === 0}
+              >
+                <SelectTrigger className={fieldInputClass(errors["categoryId"])}>
                   <SelectValue placeholder={loading ? "Loading categories..." : "Select category"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -212,7 +238,7 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
           </div>
 
           <div className={`grid gap-4 ${isStaffOrAdmin ? "sm:grid-cols-2" : ""}`}>
@@ -252,19 +278,25 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
             ) : null}
           </div>
 
-          <div className="grid gap-1.5">
-            <Label htmlFor="description">Description</Label>
+          <FormField
+            label="Description"
+            htmlFor="description"
+            error={errors["description"]}
+            hint={`${description.length}/4000 characters`}
+          >
             <Textarea
               id="description"
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(event) => {
+                setDescription(event.target.value);
+                clearError("description");
+              }}
               rows={8}
               maxLength={4000}
               placeholder="Steps to reproduce, what you expected and what happened instead."
-              required
+              className={fieldInputClass(errors["description"])}
             />
-            <p className="text-xs text-muted-foreground">{description.length}/4000 characters</p>
-          </div>
+          </FormField>
 
           <div className="grid gap-1.5">
             <Label>Attachments</Label>

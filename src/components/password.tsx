@@ -3,6 +3,7 @@ import { Eye, EyeOff, Check, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { fieldInputClass } from "@/components/form-field";
 
 export const passwordRules = [
   { label: "At least 8 characters", test: (v: string) => v.length >= 8 },
@@ -20,17 +21,21 @@ export function PasswordField({
   value,
   onChange,
   autoComplete = "new-password",
+  error,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (v: string) => void;
   autoComplete?: string;
+  error?: string;
 }) {
   const [show, setShow] = useState(false);
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={error ? "text-destructive" : undefined}>
+        {label}
+      </Label>
       <div className="relative">
         <Input
           id={id}
@@ -38,7 +43,7 @@ export function PasswordField({
           autoComplete={autoComplete}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="pr-10"
+          className={cn("pr-10", fieldInputClass(error))}
         />
         <button
           type="button"
@@ -49,6 +54,7 @@ export function PasswordField({
           {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
         </button>
       </div>
+      {error ? <p className="text-[0.8125rem] font-medium text-destructive">{error}</p> : null}
     </div>
   );
 }

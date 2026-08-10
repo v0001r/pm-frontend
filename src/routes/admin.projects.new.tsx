@@ -12,7 +12,7 @@ export const Route = createFileRoute("/admin/projects/new")({
     ],
   }),
   component: () => (
-    <RequireRole roles={["Admin"]}>
+    <RequireRole roles={["Admin", "Staff"]}>
       <NewProjectPage />
     </RequireRole>
   ),

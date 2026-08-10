@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RequireRole } from "@/components/guard";
-import { ClientTicketWorkspace } from "@/components/client-ticket-workspace";
+import { TicketWorkspace } from "@/components/ticket-workspace";
 
 export const Route = createFileRoute("/portal/tickets/$ticketId")({
   ssr: false,
@@ -21,5 +21,5 @@ export const Route = createFileRoute("/portal/tickets/$ticketId")({
 
 function ClientTicket() {
   const { ticketId } = Route.useParams();
-  return <ClientTicketWorkspace ticketId={ticketId} />;
+  return <TicketWorkspace ticketId={ticketId} mode="client" />;
 }

@@ -11,7 +11,7 @@ import {
   DataTableRowMenu,
   DateCell,
   EntityCell,
-  IdLinkCell,
+  PrimaryCell,
   Table,
   TableBody,
   TableCell,
@@ -89,8 +89,7 @@ const FILTER_DEFAULTS = {
 };
 
 const TABLE_COLUMNS = [
-  "Ticket ID",
-  "Subject",
+  "Ticket",
   "Client",
   "Project",
   "Priority",
@@ -293,7 +292,7 @@ function TicketsPage() {
       />
 
       {loading ? (
-        <TableSkeleton rows={8} cols={10} />
+        <TableSkeleton rows={8} cols={9} />
       ) : rows.length === 0 ? (
         <EmptyState
           title="No tickets match these filters"
@@ -341,10 +340,14 @@ function TicketRow({ ticket }: { ticket: TicketRecord }) {
 
   return (
     <TableRow>
-      <TableCell>
-        <IdLinkCell id={ticket.number} to="/admin/tickets/$ticketId" params={{ ticketId: ticket._id }} />
+      <TableCell className="max-w-80">
+        <PrimaryCell
+          id={ticket.number}
+          title={ticket.subject}
+          to="/admin/tickets/$ticketId"
+          params={{ ticketId: ticket._id }}
+        />
       </TableCell>
-      <TableCell className="max-w-72 font-medium">{ticket.subject}</TableCell>
       <TableCell>
         <EntityCell name={getTicketUserLabel(client)} subtitle={client?.email ?? ""} hue={42} showAvatar />
       </TableCell>

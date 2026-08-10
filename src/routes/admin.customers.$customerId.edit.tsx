@@ -11,7 +11,7 @@ import type { UpdateCustomerPayload } from "@/lib/types";
 export const Route = createFileRoute("/admin/customers/$customerId/edit")({
   ssr: false,
   component: () => (
-    <RequireRole roles={["Admin"]}>
+    <RequireRole roles={["Admin", "Staff"]}>
       <EditCustomerPage />
     </RequireRole>
   ),

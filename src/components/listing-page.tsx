@@ -48,11 +48,11 @@ export function ListingPageHeader({
 }) {
   const hasActions = exportAction || addAction || actions;
   return (
-    <header className="flex flex-wrap items-start justify-between gap-3 px-4 pt-5 pb-3">
+    <header className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5 pb-3">
       <div className="min-w-0">
         {breadcrumbs ? <ListingBreadcrumbs items={breadcrumbs} /> : null}
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-        {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+        <h1 className="text-page-title text-foreground">{title}</h1>
+        {description ? <p className="mt-1 text-body-sm text-subtle">{description}</p> : null}
       </div>
       {hasActions ? (
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -67,7 +67,7 @@ export function ListingPageHeader({
 
 export function ListingPage({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <SectionCard className={cn("overflow-hidden border border-border/70 bg-card shadow-sm", className)}>
+    <SectionCard className={cn("overflow-hidden", className)}>
       {children}
     </SectionCard>
   );
@@ -119,14 +119,14 @@ export function ListingCardHeader({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-3 border-b border-border bg-card px-4 py-3",
+        "flex flex-wrap items-center gap-3 border-b border-border/60 bg-card px-4 py-3",
         className,
       )}
     >
       <div className="min-w-[7.5rem] shrink-0">
         {breadcrumbs ? <ListingBreadcrumbs items={breadcrumbs} /> : null}
-        <h1 className="text-xl font-bold tracking-tight text-foreground">{title}</h1>
-        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+        <h1 className="text-section-title text-foreground">{title}</h1>
+        {description ? <p className="text-body-sm text-subtle">{description}</p> : null}
       </div>
 
       <div className="relative min-w-[10rem] flex-1">
@@ -135,7 +135,7 @@ export function ListingCardHeader({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="h-10 rounded-md border-border bg-background pl-9"
+          className="h-9 pl-9"
         />
       </div>
 
@@ -187,7 +187,7 @@ function ListingToolbarActions({
       {showFilters && filterContent ? (
         <Popover open={filterOpen} onOpenChange={onFilterOpenChange}>
           <PopoverTrigger asChild>
-            <Button type="button" variant="outline" size="sm" className="relative rounded-md">
+            <Button type="button" variant="outline" size="sm" className="relative">
               <SlidersHorizontal className="size-4" />
               Filters
               {activeFilterCount > 0 ? (
@@ -197,16 +197,16 @@ function ListingToolbarActions({
               ) : null}
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-[min(100vw-2rem,22rem)] rounded-xl p-0">
+          <PopoverContent align="end" className="w-[min(100vw-2rem,22rem)] p-0">
             <div className="border-b px-4 py-3">
               <p className="text-sm font-semibold text-foreground">{filterTitle}</p>
             </div>
             <div className="max-h-[min(70vh,24rem)] space-y-4 overflow-y-auto p-4">{filterContent}</div>
             <div className="flex gap-2 border-t p-3">
-              <Button type="button" variant="outline" className="flex-1 rounded-md" onClick={onFilterClear}>
+              <Button type="button" variant="outline" className="flex-1" onClick={onFilterClear}>
                 Clear
               </Button>
-              <Button type="button" className="flex-1 rounded-md" onClick={onFilterApply}>
+              <Button type="button" className="flex-1" onClick={onFilterApply}>
                 Apply
               </Button>
             </div>
@@ -214,7 +214,7 @@ function ListingToolbarActions({
         </Popover>
       ) : null}
       {onExport ? (
-        <Button type="button" variant="outline" size="sm" className="rounded-md" onClick={onExport}>
+        <Button type="button" variant="outline" size="sm" onClick={onExport}>
           <Upload className="size-4" />
           {exportLabel}
         </Button>
@@ -256,7 +256,7 @@ export function ListingSearchRow({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="h-10 rounded-md border-border bg-background pl-9"
+          className="h-9 pl-9"
         />
       </div>
       <ListingToolbarActions
@@ -307,7 +307,7 @@ export function ListingFilterSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-10 w-full rounded-xl">
+      <SelectTrigger className="h-9 w-full">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

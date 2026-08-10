@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { FormActions } from "@/components/form-actions";
+import { fieldInputClass, FormField } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { customerCreateSchema, customerEditSchema, validateForm } from "@/lib/form-validation";
 import type { CreateCustomerPayload, Customer, UpdateCustomerPayload } from "@/lib/types";
 
 interface CustomerFormProps {
@@ -35,12 +37,34 @@ export function CustomerForm({
   const [contactMobile, setContactMobile] = useState(initial?.primaryContactMobile ?? "");
   const [contactTitle, setContactTitle] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function clearError(field: string) {
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
 
   return (
     <form
       className="grid gap-5"
+      noValidate
       onSubmit={async (event) => {
         event.preventDefault();
+        const validation = validateForm(
+          isEdit ? customerEditSchema : customerCreateSchema,
+          isEdit
+            ? { companyName, email }
+            : { companyName, email, contactName, contactEmail },
+        );
+        if (!validation.success) {
+          setErrors(validation.errors);
+          return;
+        }
+        setErrors({});
         setSubmitting(true);
         try {
           if (isEdit) {
@@ -82,14 +106,26 @@ export function CustomerForm({
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5 sm:col-span-2">
-          <Label>Company name</Label>
-          <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>Organization email</Label>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
+        <FormField label="Company name" error={errors.companyName} className="sm:col-span-2">
+          <Input
+            value={companyName}
+            onChange={(e) => {
+              setCompanyName(e.target.value);
+              clearError("companyName");
+            }}
+            className={fieldInputClass(errors.companyName)}
+          />
+        </FormField>
+        <FormField label="Organization email" error={errors.email}>
+          <Input
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              clearError("email");
+            }}
+            className={fieldInputClass(errors.email)}
+          />
+        </FormField>
         <div className="grid gap-1.5">
           <Label>Phone</Label>
           <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -128,18 +164,30 @@ export function CustomerForm({
         <div className="rounded-md border p-4">
           <p className="mb-3 text-sm font-medium">Primary contact</p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label>Name</Label>
-              <Input value={contactName} onChange={(e) => setContactName(e.target.value)} required />
-            </div>
+            <FormField label="Name" error={errors.contactName}>
+              <Input
+                value={contactName}
+                onChange={(e) => {
+                  setContactName(e.target.value);
+                  clearError("contactName");
+                }}
+                className={fieldInputClass(errors.contactName)}
+              />
+            </FormField>
             <div className="grid gap-1.5">
               <Label>Job title</Label>
               <Input value={contactTitle} onChange={(e) => setContactTitle(e.target.value)} />
             </div>
-            <div className="grid gap-1.5">
-              <Label>Email</Label>
-              <Input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} required />
-            </div>
+            <FormField label="Email" error={errors.contactEmail}>
+              <Input
+                value={contactEmail}
+                onChange={(e) => {
+                  setContactEmail(e.target.value);
+                  clearError("contactEmail");
+                }}
+                className={fieldInputClass(errors.contactEmail)}
+              />
+            </FormField>
             <div className="grid gap-1.5">
               <Label>Mobile</Label>
               <Input value={contactMobile} onChange={(e) => setContactMobile(e.target.value)} />

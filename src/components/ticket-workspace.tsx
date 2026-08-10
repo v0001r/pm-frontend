@@ -17,6 +17,7 @@ import {
   Paperclip,
   Send,
   StickyNote,
+  Ticket,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -185,8 +186,15 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
 
   const ticket = ticketQuery.data;
   const clientId = getTicketUserId(ticket.clientId);
+  const ticketCustomerId =
+    typeof ticket.customerId === "string" ? ticket.customerId : ticket.customerId?._id ?? null;
 
-  if (mode === "client" && clientId !== user.id) {
+  if (
+    mode === "client" &&
+    user &&
+    clientId !== user.id &&
+    (!user.customerId || ticketCustomerId !== user.customerId)
+  ) {
     return (
       <div className="rounded-lg border bg-card p-10 text-center text-sm text-muted-foreground">
         You do not have access to this ticket.
@@ -229,67 +237,144 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <Button variant="outline" size="icon" className="mt-0.5 shrink-0 rounded-md" asChild>
-            <Link to={backTo}>
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
-          <div className="min-w-0">
-            <p className="tabular text-xs font-medium text-muted-foreground">{ticket.number}</p>
-            <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-foreground">{ticket.subject}</h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <StatusBadge status={ticket.status} />
-              <PriorityBadge priority={ticket.priority} />
-              <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold">
-                {getTicketCategoryLabel(ticket)}
-              </Badge>
-              {tags.map((t) => (
-                <Badge key={t} variant="outline" className="gap-1 rounded-full px-2.5 py-0.5 text-[11px]">
-                  {t}
-                  {mode === "admin" ? (
-                    <button
-                      type="button"
-                      onClick={() => runUpdate({ tags: tags.filter((x) => x !== t) }, `Removed tag ${t}`)}
-                      aria-label={`Remove ${t}`}
-                    >
-                      <X className="size-3" />
-                    </button>
-                  ) : null}
+      <section className="overflow-hidden rounded-md border border-border/60 bg-card shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4 p-5">
+          <div className="flex min-w-0 items-start gap-4">
+            <span className="grid size-14 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm">
+              <Ticket className="size-7" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">{ticket.subject}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {ticket.number}
+                {getTicketProjectLabel(ticket) !== "—" ? ` · ${getTicketProjectLabel(ticket)}` : ""}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <StatusBadge status={ticket.status} />
+                <PriorityBadge priority={ticket.priority} />
+                <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold">
+                  {getTicketCategoryLabel(ticket)}
                 </Badge>
-              ))}
+                {tags.map((t) => (
+                  <Badge key={t} variant="outline" className="gap-1 rounded-full px-2.5 py-0.5 text-[11px]">
+                    {t}
+                    {mode === "admin" ? (
+                      <button
+                        type="button"
+                        onClick={() => runUpdate({ tags: tags.filter((x) => x !== t) }, `Removed tag ${t}`)}
+                        aria-label={`Remove ${t}`}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    ) : null}
+                  </Badge>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {mode === "admin" ? (
-            <>
-              {!["Resolved", "Closed"].includes(ticket.status) && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-md"
-                  disabled={busy}
-                  onClick={() => runTransition({ status: "Resolved" }, "Ticket marked resolved — awaiting client approval")}
-                >
-                  Mark resolved
-                </Button>
-              )}
-              {ticket.status !== "Closed" ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <Link to={backTo}>
+                <ArrowLeft className="size-4" />
+                Back
+              </Link>
+            </Button>
+            {mode === "admin" ? (
+              <>
+                {!["Resolved", "Closed"].includes(ticket.status) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-md"
+                    disabled={busy}
+                    onClick={() => runTransition({ status: "Resolved" }, "Ticket marked resolved — awaiting client approval")}
+                  >
+                    Mark resolved
+                  </Button>
+                )}
+                {ticket.status !== "Closed" ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" className="rounded-md" disabled={busy}>
+                        Close ticket
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Close this ticket?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Add a closing comment. The client will be notified that {ticket.number} has been closed.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <Textarea
+                        value={closeComment}
+                        onChange={(e) => setCloseComment(e.target.value)}
+                        rows={3}
+                        placeholder="Closing comment (required)"
+                      />
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          disabled={!closeComment.trim()}
+                          onClick={() => {
+                            runTransition({ status: "Closed", comment: closeComment.trim() }, "Ticket closed");
+                            setCloseComment("");
+                          }}
+                        >
+                          Close ticket
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-md"
+                    disabled={busy}
+                    onClick={() => runTransition({ status: "Reopened" }, "Ticket reopened")}
+                  >
+                    Reopen ticket
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" className="rounded-md" disabled={busy}>
+                      <MoreVertical className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {ticket.status !== "Cancelled" && (
+                      <DropdownMenuItem onClick={() => runTransition({ status: "Cancelled" }, "Ticket cancelled")}>
+                        Cancel ticket
+                      </DropdownMenuItem>
+                    )}
+                    {ticket.status === "Closed" && (
+                      <DropdownMenuItem onClick={() => runTransition({ status: "Reopened" }, "Ticket reopened")}>
+                        Reopen ticket
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to={backTo}>Back to tickets</Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              ticket.status === "Resolved" ? (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button size="sm" className="rounded-md" disabled={busy}>
-                      Close ticket
+                      Mark as closed
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Close this ticket?</AlertDialogTitle>
+                      <AlertDialogTitle>Mark this ticket as closed?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Add a closing comment. The client will be notified that {ticket.number} has been closed.
+                        Confirm the issue is resolved. Add a short note for your support team.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <Textarea
@@ -303,104 +388,49 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                       <AlertDialogAction
                         disabled={!closeComment.trim()}
                         onClick={() => {
-                          runTransition({ status: "Closed", comment: closeComment.trim() }, "Ticket closed");
+                          runTransition(
+                            { status: "Closed", comment: closeComment.trim() },
+                            "Ticket marked as closed",
+                          );
                           setCloseComment("");
                         }}
                       >
-                        Close ticket
+                        Mark as closed
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="rounded-md"
-                  disabled={busy}
-                  onClick={() => runTransition({ status: "Reopened" }, "Ticket reopened")}
-                >
-                  Reopen ticket
-                </Button>
-              )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="rounded-md" disabled={busy}>
-                    <MoreVertical className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {ticket.status !== "Cancelled" && (
-                    <DropdownMenuItem onClick={() => runTransition({ status: "Cancelled" }, "Ticket cancelled")}>
-                      Cancel ticket
-                    </DropdownMenuItem>
-                  )}
-                  {ticket.status === "Closed" && (
-                    <DropdownMenuItem onClick={() => runTransition({ status: "Reopened" }, "Ticket reopened")}>
-                      Reopen ticket
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to={backTo}>Back to tickets</Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          ) : (
-            <>
-              {ticket.status === "Resolved" && (
-                <Button
-                  size="sm"
-                  className="rounded-md"
-                  disabled={busy}
-                  onClick={() => runTransition({ status: "Closed", comment: "Closed by client" }, "Ticket closed")}
-                >
-                  Close ticket
-                </Button>
-              )}
-              {ticket.status === "Closed" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="rounded-md"
-                  disabled={busy}
-                  onClick={() => runTransition({ status: "Reopened" }, "Ticket reopened")}
-                >
-                  Reopen ticket
-                </Button>
-              )}
-            </>
-          )}
+              ) : null
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Tab navigation */}
-      <div className="overflow-x-auto border-b border-border">
-        <nav className="flex min-w-max items-center gap-1">
-          {workspaceTabs.map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
-                  active
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="size-4" />
-                {tab.label}
-                {tab.count !== undefined ? ` (${tab.count})` : ""}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+        <div className="overflow-x-auto border-t border-border/60">
+          <nav className="flex min-w-max items-center gap-1 px-2">
+            {workspaceTabs.map((tab) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                    active
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {tab.label}
+                  {tab.count !== undefined ? ` (${tab.count})` : ""}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </section>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
         {/* Main column */}

@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, LifeBuoy, Loader2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GuestRoute } from "@/components/guard";
+import { fieldInputClass, FormField } from "@/components/form-field";
 import { useAuth, homeFor } from "@/lib/auth";
 import { getApiErrorMessage } from "@/lib/api";
+import { loginSchema, validateForm } from "@/lib/form-validation";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -40,14 +44,28 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function clearError(field: string) {
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    if (!email.trim()) return setError("Please enter your email address.");
-    if (!password) return setError("Please enter your password.");
+    setApiError("");
+    const validation = validateForm(loginSchema, { email, password });
+    if (!validation.success) {
+      setErrors(validation.errors);
+      return;
+    }
+    setErrors({});
     setLoading(true);
     try {
       const user = await login(email, password, remember);
@@ -57,7 +75,7 @@ function LoginPage() {
         navigate({ to: homeFor(user.role), replace: true });
       }
     } catch (err) {
-      setError(getApiErrorMessage(err, "Unable to sign in."));
+      setApiError(getApiErrorMessage(err, "Unable to sign in."));
     } finally {
       setLoading(false);
     }
@@ -67,14 +85,8 @@ function LoginPage() {
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
       <div className="relative hidden flex-col justify-between overflow-hidden bg-[#0f172a] p-12 lg:flex">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_20%_0%,rgb(79_70_229/0.35),transparent_55%),radial-gradient(ellipse_60%_50%_at_100%_100%,rgb(14_165_233/0.15),transparent_50%)]" />
-        <div className="relative flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-indigo-400 text-white shadow-[0_8px_24px_-4px_rgb(79_70_229/0.5)]">
-            <LifeBuoy className="size-5" strokeWidth={2} />
-          </span>
-          <div>
-            <span className="block text-[15px] font-bold text-white">Helpdesk</span>
-            <span className="block text-[11px] font-medium text-slate-400">Enterprise</span>
-          </div>
+        <div className="relative">
+          <BrandLogo className="h-10 max-w-[220px]" />
         </div>
         <div className="relative max-w-md">
           <h2 className="text-[2rem] leading-tight font-bold tracking-tight text-white">
@@ -97,47 +109,49 @@ function LoginPage() {
             ))}
           </dl>
         </div>
-        <p className="relative text-xs text-slate-500">© 2026 Helpdesk Enterprise. All rights reserved.</p>
+        <p className="relative text-xs text-slate-500">© 2026 Miraki Technologies. All rights reserved.</p>
       </div>
 
       <div className="canvas flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-sm">
-          <div className="mb-8 lg:hidden">
-            <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
-              <LifeBuoy className="size-5" />
-            </span>
+          <div className="mb-8 inline-flex rounded-lg bg-[#0f172a] px-4 py-3 lg:hidden">
+            <BrandLogo className="h-8 max-w-[200px]" />
           </div>
           <h1 className="text-[1.75rem] font-bold tracking-tight">Sign in</h1>
           <p className="mt-2 text-[15px] text-muted-foreground">Access your support workspace.</p>
 
           <form onSubmit={onSubmit} className="panel mt-8 flex flex-col gap-5 p-6" noValidate>
-            {error && (
+            {apiError && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{apiError}</AlertDescription>
               </Alert>
             )}
-            <div className="grid gap-1.5">
-              <Label htmlFor="email">Email address</Label>
+            <FormField label="Email address" htmlFor="email" error={errors.email}>
               <Input
                 id="email"
-                type="email"
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  clearError("email");
+                }}
                 placeholder="you@company.com"
+                className={fieldInputClass(errors.email)}
               />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="password">Password</Label>
+            </FormField>
+            <FormField label="Password" htmlFor="password" error={errors.password}>
               <div className="relative">
                 <Input
                   id="password"
                   type={show ? "text" : "password"}
                   autoComplete="current-password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    clearError("password");
+                  }}
                   placeholder="••••••••"
-                  className="pr-10"
+                  className={cn("pr-10", fieldInputClass(errors.password))}
                 />
                 <button
                   type="button"
@@ -148,7 +162,7 @@ function LoginPage() {
                   {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
-            </div>
+            </FormField>
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={remember} onCheckedChange={(v) => setRemember(v === true)} />

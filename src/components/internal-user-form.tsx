@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Briefcase, Shield, User } from "lucide-react";
 import { FormActions } from "@/components/form-actions";
+import { fieldInputClass, FormField } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsPanelTrigger } from "@/components/ui/tabs";
 import { fetchDepartments, fetchDesignations, fetchTeams } from "@/lib/org";
+import { internalUserSchema, validateForm } from "@/lib/form-validation";
 import { fetchEmployees } from "@/lib/users";
 import type { CreateInternalUserPayload, InternalUser, Role, UpdateInternalUserPayload } from "@/lib/types";
 
@@ -44,6 +46,7 @@ export function InternalUserForm({
   const [status, setStatus] = useState(initial?.status ?? "Active");
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const departmentsQuery = useQuery({ queryKey: ["departments"], queryFn: fetchDepartments });
   const designationsQuery = useQuery({
@@ -65,11 +68,33 @@ export function InternalUserForm({
     }
   }, [departmentId]);
 
+  function clearError(field: string) {
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
   return (
     <form
       className="grid gap-5"
+      noValidate
       onSubmit={async (event) => {
         event.preventDefault();
+        const validation = validateForm(internalUserSchema, {
+          firstName,
+          lastName,
+          email,
+          phone,
+        });
+        if (!validation.success) {
+          setErrors(validation.errors);
+          setTab("general");
+          return;
+        }
+        setErrors({});
         setSubmitting(true);
         try {
           if (mode === "create") {
@@ -137,22 +162,46 @@ export function InternalUserForm({
         </TabsList>
 
         <TabsContent value="general" className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <Label>First name</Label>
-            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Last name</Label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Email</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Mobile</Label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
-          </div>
+          <FormField label="First name" error={errors.firstName}>
+            <Input
+              value={firstName}
+              onChange={(e) => {
+                setFirstName(e.target.value);
+                clearError("firstName");
+              }}
+              className={fieldInputClass(errors.firstName)}
+            />
+          </FormField>
+          <FormField label="Last name" error={errors.lastName}>
+            <Input
+              value={lastName}
+              onChange={(e) => {
+                setLastName(e.target.value);
+                clearError("lastName");
+              }}
+              className={fieldInputClass(errors.lastName)}
+            />
+          </FormField>
+          <FormField label="Email" error={errors.email}>
+            <Input
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                clearError("email");
+              }}
+              className={fieldInputClass(errors.email)}
+            />
+          </FormField>
+          <FormField label="Mobile" error={errors.phone}>
+            <Input
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                clearError("phone");
+              }}
+              className={fieldInputClass(errors.phone)}
+            />
+          </FormField>
           <div className="grid gap-1.5 sm:col-span-2">
             <Label>Address</Label>
             <Input value={address} onChange={(e) => setAddress(e.target.value)} />

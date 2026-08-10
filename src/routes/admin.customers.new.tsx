@@ -11,7 +11,7 @@ export const Route = createFileRoute("/admin/customers/new")({
   ssr: false,
   head: () => ({ meta: [{ title: "New Customer — Helpdesk Admin" }] }),
   component: () => (
-    <RequireRole roles={["Admin"]}>
+    <RequireRole roles={["Admin", "Staff"]}>
       <NewCustomerPage />
     </RequireRole>
   ),

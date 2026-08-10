@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
+import { fieldInputClass, FormField } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageHeader, SectionCard } from "@/components/primitives";
 import { useAuth, homeFor } from "@/lib/auth";
 import { getApiErrorMessage } from "@/lib/api";
+import { changePasswordSchema, validateForm } from "@/lib/form-validation";
 
 export const Route = createFileRoute("/change-password")({
   ssr: false,
@@ -20,12 +21,22 @@ function ChangePasswordPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
 
   if (!user) {
     navigate({ to: "/", replace: true });
     return null;
+  }
+
+  function clearError(field: string) {
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
   }
 
   return (
@@ -35,40 +46,73 @@ function ChangePasswordPage() {
         <SectionCard>
           <form
             className="grid gap-4 p-4"
+            noValidate
             onSubmit={async (event) => {
               event.preventDefault();
-              setError("");
-              if (newPassword.length < 8) return setError("Password must be at least 8 characters.");
-              if (newPassword !== confirm) return setError("Passwords do not match.");
+              setApiError("");
+              const validation = validateForm(changePasswordSchema, {
+                currentPassword,
+                newPassword,
+                confirm,
+              });
+              if (!validation.success) {
+                setErrors(validation.errors);
+                return;
+              }
+              setErrors({});
               setLoading(true);
               try {
                 await changePassword(currentPassword, newPassword);
                 await refresh();
                 navigate({ to: homeFor(user.role), replace: true });
               } catch (err) {
-                setError(getApiErrorMessage(err, "Unable to change password."));
+                setApiError(getApiErrorMessage(err, "Unable to change password."));
               } finally {
                 setLoading(false);
               }
             }}
           >
-            {error && (
+            {apiError && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{apiError}</AlertDescription>
               </Alert>
             )}
-            <div className="grid gap-1.5">
-              <Label htmlFor="current">Current / temporary password</Label>
-              <Input id="current" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="new">New password</Label>
-              <Input id="new" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="confirm">Confirm new password</Label>
-              <Input id="confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
-            </div>
+            <FormField label="Current / temporary password" htmlFor="current" error={errors.currentPassword}>
+              <Input
+                id="current"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => {
+                  setCurrentPassword(e.target.value);
+                  clearError("currentPassword");
+                }}
+                className={fieldInputClass(errors.currentPassword)}
+              />
+            </FormField>
+            <FormField label="New password" htmlFor="new" error={errors.newPassword}>
+              <Input
+                id="new"
+                type="password"
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  clearError("newPassword");
+                }}
+                className={fieldInputClass(errors.newPassword)}
+              />
+            </FormField>
+            <FormField label="Confirm new password" htmlFor="confirm" error={errors.confirm}>
+              <Input
+                id="confirm"
+                type="password"
+                value={confirm}
+                onChange={(e) => {
+                  setConfirm(e.target.value);
+                  clearError("confirm");
+                }}
+                className={fieldInputClass(errors.confirm)}
+              />
+            </FormField>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="size-4 animate-spin" />}
               Update password

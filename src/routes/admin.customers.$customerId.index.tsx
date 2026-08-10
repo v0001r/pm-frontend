@@ -2,14 +2,14 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, FolderKanban, Info, Mail, Pencil, Ticket, Users } from "lucide-react";
+import { ArrowLeft, Building2, FolderKanban, Info, Mail, Pencil, Ticket, Users } from "lucide-react";
 import { RequireRole } from "@/components/guard";
 import { CustomerContactsTab } from "@/components/customer-contacts-tab";
-import { EmptyState, KpiCard, PageHeader, SectionCard, StatusBadge, TableSkeleton } from "@/components/primitives";
+import { EmptyState, KpiCard, SectionCard, StatusBadge, TableSkeleton } from "@/components/primitives";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsPanelTrigger } from "@/components/ui/tabs";
 import { getApiErrorMessage } from "@/lib/api";
-import { isAdmin } from "@/lib/auth";
+import { isAdmin, isStaff } from "@/lib/auth";
 import {
   fetchCustomerOverview,
   fetchCustomerProjects,
@@ -69,35 +69,51 @@ function CustomerDetailPage() {
   });
 
   if (overviewQuery.isLoading || !overviewQuery.data) {
-    return (
-      <>
-        <PageHeader title="Customer" />
-        <TableSkeleton rows={6} cols={4} />
-      </>
-    );
+    return <TableSkeleton rows={6} cols={4} />;
   }
 
   const { customer, summary } = overviewQuery.data;
 
   return (
-    <>
-      <PageHeader
-        title={customer.companyName}
-        description={`${customer.customerId} · ${customer.primaryContactEmail}`}
-        actions={
+    <div className="flex flex-col gap-5">
+      <section className="rounded-md border border-border/60 bg-card p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-4">
+            <span className="grid size-14 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm">
+              <Building2 className="size-7" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">{customer.companyName}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {customer.customerId} · {customer.primaryContactEmail}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <StatusBadge status={customer.status} />
+                <span className="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground">
+                  {customer.invitationStatus ?? "Not Sent"}
+                </span>
+              </div>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" asChild>
-              <Link to="/admin/customers"><ArrowLeft className="size-4" /> Back</Link>
+              <Link to="/admin/customers">
+                <ArrowLeft className="size-4" />
+                Back
+              </Link>
+            </Button>
+            <Button size="sm" asChild>
+              <Link to="/admin/customers/$customerId/edit" params={{ customerId }}>
+                <Pencil className="size-4" />
+                Edit Customer
+              </Link>
             </Button>
             {isAdmin(user?.role) && (
               <>
-                <Button size="sm" variant="outline" asChild>
-                  <Link to="/admin/customers/$customerId/edit" params={{ customerId }}>
-                    <Pencil className="size-4" /> Edit
-                  </Link>
-                </Button>
                 <Button size="sm" variant="outline" disabled={inviteMutation.isPending} onClick={() => inviteMutation.mutate()}>
-                  <Mail className="size-4" /> Resend invite
+                  <Mail className="size-4" />
+                  Resend invite
                 </Button>
                 <Button
                   size="sm"
@@ -112,17 +128,10 @@ function CustomerDetailPage() {
               </>
             )}
           </div>
-        }
-      />
+        </div>
+      </section>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <StatusBadge status={customer.status} />
-        <span className="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground">
-          {customer.invitationStatus ?? "Not Sent"}
-        </span>
-      </div>
-
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Projects" value={summary.totalProjects} />
         <KpiCard label="Tickets" value={summary.totalTickets} />
         <KpiCard label="Open tickets" value={summary.openTickets} tone="warning" />
@@ -158,7 +167,7 @@ function CustomerDetailPage() {
         </TabsList>
 
         <TabsContent value="contacts">
-          <CustomerContactsTab customerId={customerId} canManage={isAdmin(user?.role)} />
+          <CustomerContactsTab customerId={customerId} canManage={isStaff(user?.role)} />
         </TabsContent>
 
         <TabsContent value="info">
@@ -222,6 +231,6 @@ function CustomerDetailPage() {
           </SectionCard>
         </TabsContent>
       </Tabs>
-    </>
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -13,7 +13,6 @@ import {
   LogOut,
   UserRound,
   UserCog,
-  LifeBuoy,
   Settings,
   Inbox,
   ChevronDown,
@@ -47,6 +46,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserAvatar } from "@/components/primitives";
+import { BrandLogo } from "@/components/brand-logo";
 import { useAuth } from "@/lib/auth";
 import { actions, categoryName, findUser, relativeTime, useStore } from "@/lib/store";
 import { fullName } from "@/lib/types";
@@ -84,11 +84,13 @@ const clientNav: NavItem[] = [
 
 function navItemClasses(active: boolean, collapsed: boolean) {
   return cn(
-    "relative flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:ring-sidebar-ring/40 focus-visible:outline-none",
-    collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
+    "relative flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-all duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-ring/40 focus-visible:outline-none",
+    collapsed ? "justify-center px-2 py-2" : "px-3 py-2",
     active
-      ? "bg-primary text-primary-foreground shadow-sm"
-      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-active-foreground",
+      ? collapsed
+        ? "bg-sidebar-accent text-sidebar-active-foreground"
+        : "bg-sidebar-accent text-sidebar-active-foreground before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-primary"
+      : "text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-active-foreground",
   );
 }
 
@@ -121,7 +123,6 @@ function NavList({
           >
             <NavIcon icon={item.icon} />
             {!collapsed && <span className="truncate">{item.label}</span>}
-            {!collapsed && active ? <ChevronRight className="ml-auto size-4 shrink-0 opacity-90" /> : null}
           </Link>
         );
         if (!collapsed) return link;
@@ -138,16 +139,13 @@ function NavList({
 
 function Brand({ collapsed = false }: { collapsed?: boolean }) {
   return (
-    <div className={cn("flex h-14 items-center gap-2.5 border-b border-sidebar-border", collapsed ? "justify-center px-2" : "px-4")}>
-      <span className="grid size-8 shrink-0 place-items-center rounded-md bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
-        <LifeBuoy className="size-4" strokeWidth={2} />
-      </span>
-      {!collapsed && (
-        <div className="min-w-0">
-          <span className="block truncate text-sm font-bold tracking-tight text-sidebar-active-foreground">Helpdesk</span>
-          <span className="block truncate text-[10px] font-medium text-sidebar-section-foreground">Enterprise</span>
-        </div>
+    <div
+      className={cn(
+        "flex h-14 items-center border-b border-sidebar-border",
+        collapsed ? "justify-center px-2" : "px-4",
       )}
+    >
+      <BrandLogo variant={collapsed ? "mark" : "full"} className={collapsed ? "h-9" : "h-8 max-w-[168px]"} />
     </div>
   );
 }
@@ -244,7 +242,20 @@ function Breadcrumbs() {
 function GlobalSearch() {
   const { user } = useAuth();
   const [q, setQ] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const store = useStore((s) => s);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const results = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return [];
@@ -272,15 +283,19 @@ function GlobalSearch() {
   const base = user?.role === "Client" ? "/portal/tickets" : "/admin/tickets";
 
   return (
-    <div className="relative w-full max-w-sm">
+    <div className="relative w-full max-w-md">
       <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
+        ref={inputRef}
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search tickets, clients, agents…"
         aria-label="Global search"
-        className="h-10 rounded-xl border-border/60 bg-muted/40 pl-9 shadow-none focus-visible:bg-surface"
+        className="h-9 border-border/60 bg-muted/30 pl-9 pr-16 shadow-none focus-visible:bg-surface"
       />
+      <kbd className="pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 sm:inline-flex">
+        ⌘K
+      </kbd>
       {results.length > 0 && (
         <div className="panel absolute top-12 z-50 w-full overflow-hidden p-1.5 shadow-raised">
           {results.map((t) => (
@@ -319,7 +334,7 @@ function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-88 rounded-2xl border-border/60 p-0 shadow-raised">
+      <PopoverContent align="end" className="w-88 p-0 shadow-raised">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <p className="text-sm font-semibold">Notifications</p>
           <Button variant="ghost" size="sm" onClick={() => user && actions.markNotificationsRead(user.id)}>
@@ -373,7 +388,7 @@ function ProfileMenu() {
             <ChevronDown className="size-3.5 text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 rounded-2xl border-border/60 p-1.5 shadow-raised">
+        <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-raised">
           <DropdownMenuLabel>
             <p className="text-sm font-semibold">{name}</p>
             <p className="text-xs font-normal text-muted-foreground">{user.email}</p>
@@ -458,7 +473,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="glass sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border/50 px-4 sm:px-6">
+          <header className="glass sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border/60 px-4 sm:px-6">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-lg lg:hidden" aria-label="Open menu">
@@ -481,7 +496,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="ml-auto flex items-center gap-1 sm:ml-0">
-              <Button asChild size="sm" className="hidden h-10 rounded-lg sm:inline-flex">
+              <Button asChild size="sm" className="hidden h-9 sm:inline-flex">
                 <Link to={user?.role === "Client" ? "/portal/tickets/new" : "/admin/tickets/new"}>
                   <Plus className="size-4" /> New ticket
                 </Link>
@@ -493,7 +508,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </header>
 
           <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
-            <div className="mx-auto flex max-w-[1400px] flex-col gap-7">{children}</div>
+            <div className="mx-auto flex max-w-[1400px] flex-col gap-6">{children}</div>
           </main>
         </div>
       </div>

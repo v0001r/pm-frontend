@@ -54,7 +54,7 @@ const TabsPanelTrigger = React.forwardRef<React.ElementRef<typeof TabsPrimitive.
     <TabsPrimitive.Trigger
       ref={ref}
       className={cn(
-        "group flex min-w-[9.5rem] flex-1 items-start gap-3 border-r border-border px-4 py-4 text-left transition-colors last:border-r-0",
+        "group flex min-w-[9.5rem] flex-1 items-start gap-3 border-r border-border/60 px-4 py-3.5 text-left transition-colors duration-150 last:border-r-0",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "data-[state=active]:border-y-2 data-[state=active]:border-y-primary data-[state=active]:bg-primary-soft data-[state=active]:text-primary",
         "disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed",

@@ -278,18 +278,17 @@ export function EntityCell({
   );
 }
 
-const LABEL_COLORS = [
-  "bg-violet-50 text-violet-700 ring-violet-100",
-  "bg-sky-50 text-sky-700 ring-sky-100",
-  "bg-emerald-50 text-emerald-700 ring-emerald-100",
-  "bg-amber-50 text-amber-700 ring-amber-100",
-  "bg-rose-50 text-rose-700 ring-rose-100",
-  "bg-indigo-50 text-indigo-700 ring-indigo-100",
-];
+const LABEL_VARIANTS = [
+  "bg-primary/10 text-primary ring-primary/15",
+  "bg-info/10 text-info ring-info/15",
+  "bg-success/10 text-success ring-success/15",
+  "bg-warning/10 text-warning ring-warning/15",
+  "bg-destructive/10 text-destructive ring-destructive/15",
+] as const;
 
 export function LabelPill({ label }: { label: string }) {
   if (!label || label === "—") return <span className="text-muted-foreground">—</span>;
-  const color = LABEL_COLORS[label.length % LABEL_COLORS.length];
+  const color = LABEL_VARIANTS[label.length % LABEL_VARIANTS.length];
   return (
     <span className={cn("inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset", color)}>
       {label}
@@ -302,13 +301,13 @@ export function ProgressCell({
   tone = "primary",
 }: {
   value: number;
-  tone?: "primary" | "success" | "warning" | "violet";
+  tone?: "primary" | "success" | "warning" | "info";
 }) {
   const barColor = {
     primary: "bg-primary",
-    success: "bg-emerald-500",
-    warning: "bg-amber-500",
-    violet: "bg-violet-500",
+    success: "bg-success",
+    warning: "bg-warning",
+    info: "bg-info",
   }[tone];
 
   return (

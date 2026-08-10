@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { FormActions } from "@/components/form-actions";
+import { fieldInputClass, FormField } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { contactFormSchema, validateForm } from "@/lib/form-validation";
 import type { CreateContactPayload, CustomerContact, UpdateContactPayload } from "@/lib/types";
 
 interface ContactFormProps {
@@ -27,12 +29,29 @@ export function ContactForm({
   const [isPrimary, setIsPrimary] = useState(initial?.isPrimary ?? false);
   const [portalAccess, setPortalAccess] = useState(initial?.portalAccess ?? false);
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function clearError(field: string) {
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
 
   return (
     <form
       className="grid gap-4"
+      noValidate
       onSubmit={async (event) => {
         event.preventDefault();
+        const validation = validateForm(contactFormSchema, { name, email });
+        if (!validation.success) {
+          setErrors(validation.errors);
+          return;
+        }
+        setErrors({});
         setSubmitting(true);
         try {
           if (mode === "create") {
@@ -58,16 +77,17 @@ export function ContactForm({
         }
       }}
     >
-      <div className="grid gap-1.5">
-        <Label htmlFor="contact-name">Name</Label>
+      <FormField label="Name" htmlFor="contact-name" error={errors.name}>
         <Input
           id="contact-name"
           value={name}
-          onChange={(event) => setName(event.target.value)}
-          required
-          minLength={2}
+          onChange={(event) => {
+            setName(event.target.value);
+            clearError("name");
+          }}
+          className={fieldInputClass(errors.name)}
         />
-      </div>
+      </FormField>
 
       <div className="grid gap-1.5">
         <Label htmlFor="contact-title">Job title</Label>
@@ -79,16 +99,17 @@ export function ContactForm({
         />
       </div>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="contact-email">Email</Label>
+      <FormField label="Email" htmlFor="contact-email" error={errors.email}>
         <Input
           id="contact-email"
-          type="email"
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          required
+          onChange={(event) => {
+            setEmail(event.target.value);
+            clearError("email");
+          }}
+          className={fieldInputClass(errors.email)}
         />
-      </div>
+      </FormField>
 
       <div className="grid gap-1.5">
         <Label htmlFor="contact-mobile">Mobile</Label>

@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fieldInputClass, FormField } from "@/components/form-field";
 import { getApiErrorMessage } from "@/lib/api";
+import { projectFormSchema, validateForm } from "@/lib/form-validation";
 import { createProject, fetchCustomers, updateProject } from "@/lib/projects";
 import { PROJECT_STATUSES, type CreateProjectPayload, type ProjectStatus, type UpdateProjectPayload } from "@/lib/types";
 
@@ -77,6 +79,7 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
   const [values, setValues] = useState<ProjectFormValues>({ ...defaultValues, ...initialValues });
   const [customerSearch, setCustomerSearch] = useState("");
   const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedCustomerSearch(customerSearch.trim()), 300);
@@ -99,21 +102,6 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
   const mutation = useMutation({
     mutationFn: async () => {
       const maxHours = Number(values.maxHours);
-      if (!values.name.trim()) {
-        throw new Error("Project name is required");
-      }
-      if (!values.customerId) {
-        throw new Error("Customer is required");
-      }
-      if (!values.startDate) {
-        throw new Error("Start date is required");
-      }
-      if (!values.maxHours.trim()) {
-        throw new Error("Maximum hours is required");
-      }
-      if (values.endDate && values.startDate > values.endDate) {
-        throw new Error("End date cannot be before start date");
-      }
 
       if (mode === "create") {
         const payload: CreateProjectPayload = {
@@ -154,31 +142,48 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
 
   function updateField<K extends keyof ProjectFormValues>(field: K, value: ProjectFormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
   }
 
   return (
     <form
       className="grid gap-5 p-4"
+      noValidate
       onSubmit={(event) => {
         event.preventDefault();
+        const validation = validateForm(projectFormSchema, {
+          name: values.name,
+          customerId: values.customerId,
+          startDate: values.startDate,
+          maxHours: values.maxHours,
+          endDate: values.endDate,
+        });
+        if (!validation.success) {
+          setErrors(validation.errors);
+          return;
+        }
+        setErrors({});
         mutation.mutate();
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5 sm:col-span-2">
-          <Label htmlFor="project-name">Project name</Label>
+        <FormField label="Project name" htmlFor="project-name" error={errors.name} className="sm:col-span-2">
           <Input
             id="project-name"
             value={values.name}
             onChange={(event) => updateField("name", event.target.value)}
             placeholder="Website redesign"
             maxLength={120}
-            required
+            className={fieldInputClass(errors.name)}
           />
-        </div>
+        </FormField>
 
-        <div className="grid gap-1.5 sm:col-span-2">
-          <Label htmlFor="customer-search">Customer</Label>
+        <FormField label="Customer" htmlFor="customer-search" error={errors.customerId} className="sm:col-span-2">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -190,7 +195,7 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
             />
           </div>
           <Select value={values.customerId} onValueChange={(value) => updateField("customerId", value)}>
-            <SelectTrigger>
+            <SelectTrigger className={fieldInputClass(errors.customerId)}>
               <SelectValue placeholder={customersLoading ? "Loading customers..." : "Select customer"} />
             </SelectTrigger>
             <SelectContent>
@@ -206,39 +211,37 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
               )}
             </SelectContent>
           </Select>
-        </div>
+        </FormField>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="start-date">Start date</Label>
+        <FormField label="Start date" htmlFor="start-date" error={errors.startDate}>
           <Input
             id="start-date"
             type="date"
             value={values.startDate}
             onChange={(event) => updateField("startDate", event.target.value)}
-            required
+            className={fieldInputClass(errors.startDate)}
           />
-        </div>
+        </FormField>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="end-date">End date</Label>
+        <FormField label="End date" htmlFor="end-date" error={errors.endDate}>
           <Input
             id="end-date"
             type="date"
             value={values.endDate}
             onChange={(event) => updateField("endDate", event.target.value)}
+            className={fieldInputClass(errors.endDate)}
           />
-        </div>
+        </FormField>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="max-hours">Maximum hours</Label>
+        <FormField label="Maximum hours" htmlFor="max-hours" error={errors.maxHours}>
           <Input
             id="max-hours"
             type="number"
             value={values.maxHours}
             onChange={(event) => updateField("maxHours", event.target.value)}
-            required
+            className={fieldInputClass(errors.maxHours)}
           />
-        </div>
+        </FormField>
 
         <div className="grid gap-1.5">
           <Label>Status</Label>

@@ -3,11 +3,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, LifeBuoy, Loader2, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GuestRoute } from "@/components/guard";
+import { fieldInputClass, FormField } from "@/components/form-field";
 import { forgotPassword } from "@/lib/auth";
 import { getApiErrorMessage } from "@/lib/api";
+import { forgotPasswordSchema, validateForm } from "@/lib/form-validation";
 
 export const Route = createFileRoute("/forgot-password")({
   ssr: false,
@@ -30,18 +31,24 @@ function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Enter a valid email address.");
-    setError("");
+    setApiError("");
+    const validation = validateForm(forgotPasswordSchema, { email });
+    if (!validation.success) {
+      setErrors(validation.errors);
+      return;
+    }
+    setErrors({});
     setLoading(true);
     try {
       await forgotPassword(email);
       setSent(true);
     } catch (err) {
-      setError(getApiErrorMessage(err, "Unable to process request."));
+      setApiError(getApiErrorMessage(err, "Unable to process request."));
     } finally {
       setLoading(false);
     }
@@ -77,15 +84,28 @@ function ForgotPassword() {
               Enter the email address linked to your account and we'll send a reset link.
             </p>
             <form onSubmit={submit} className="mt-6 flex flex-col gap-4" noValidate>
-              {error && (
+              {apiError && (
                 <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{apiError}</AlertDescription>
                 </Alert>
               )}
-              <div className="grid gap-1.5">
-                <Label htmlFor="email">Email address</Label>
-                <Input id="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
-              </div>
+              <FormField label="Email address" htmlFor="email" error={errors.email}>
+                <Input
+                  id="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setErrors((current) => {
+                      if (!current.email) return current;
+                      const next = { ...current };
+                      delete next.email;
+                      return next;
+                    });
+                  }}
+                  placeholder="you@company.com"
+                  className={fieldInputClass(errors.email)}
+                />
+              </FormField>
               <Button type="submit" disabled={loading}>
                 {loading && <Loader2 className="size-4 animate-spin" />}
                 Send reset link

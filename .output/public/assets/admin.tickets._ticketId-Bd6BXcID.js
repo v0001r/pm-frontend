@@ -1,0 +1,1 @@
+import{o as e}from"./useStore-Bwb3bsWW.js";import{a as t}from"./guard-woxs3yvE.js";import{t as n}from"./ticket-workspace-CIT8umKZ.js";import{d as r}from"./index-my2fjg5Z.js";var i=e();function a(){let{ticketId:e}=r.useParams();return(0,i.jsx)(n,{ticketId:e,mode:`admin`})}var o=()=>(0,i.jsx)(t,{roles:[`Admin`,`Staff`],children:(0,i.jsx)(a,{})});export{o as component};

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, FolderKanban, KeyRound, Mail, Pencil, Settings, User, UserCheck, UserX } from "lucide-react";
 import { RequireRole } from "@/components/guard";
-import { EmptyState, KpiCard, PageHeader, SectionCard, StatusBadge, TableSkeleton } from "@/components/primitives";
+import { EmptyState, KpiCard, SectionCard, StatusBadge, TableSkeleton } from "@/components/primitives";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsPanelTrigger } from "@/components/ui/tabs";
 import { getApiErrorMessage } from "@/lib/api";
@@ -74,48 +74,58 @@ function UserDetailPage() {
   });
 
   if (overviewQuery.isLoading || !overviewQuery.data) {
-    return (
-      <>
-        <PageHeader title="User" />
-        <TableSkeleton rows={6} cols={4} />
-      </>
-    );
+    return <TableSkeleton rows={6} cols={4} />;
   }
 
   const { user, summary } = overviewQuery.data;
 
   return (
-    <>
-      <PageHeader
-        title={user.name ?? `${user.firstName} ${user.lastName}`}
-        description={`${user.employeeId ?? "—"} · ${user.email}`}
-        actions={
+    <div className="flex flex-col gap-5">
+      <section className="rounded-md border border-border/60 bg-card p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-4">
+            <span className="grid size-14 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm">
+              <User className="size-7" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                {user.name ?? `${user.firstName} ${user.lastName}`}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {user.employeeId ?? "—"} · {user.email}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <StatusBadge status={user.status} />
+                <span className="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground">
+                  {user.invitationStatus ?? "Not Sent"}
+                </span>
+                {user.loginEnabled === false && (
+                  <span className="rounded-full border border-destructive/30 px-2.5 py-0.5 text-xs text-destructive">
+                    Login disabled
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" asChild>
-              <Link to="/admin/users"><ArrowLeft className="size-4" /> Back</Link>
+              <Link to="/admin/users">
+                <ArrowLeft className="size-4" />
+                Back
+              </Link>
             </Button>
-            <Button size="sm" variant="outline" asChild>
+            <Button size="sm" asChild>
               <Link to="/admin/users/$userId/edit" params={{ userId }}>
-                <Pencil className="size-4" /> Edit
+                <Pencil className="size-4" />
+                Edit User
               </Link>
             </Button>
           </div>
-        }
-      />
+        </div>
+      </section>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <StatusBadge status={user.status} />
-        <span className="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground">
-          {user.invitationStatus ?? "Not Sent"}
-        </span>
-        {user.loginEnabled === false && (
-          <span className="rounded-full border border-destructive/30 px-2.5 py-0.5 text-xs text-destructive">
-            Login disabled
-          </span>
-        )}
-      </div>
-
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Assigned projects" value={summary.assignedProjects} />
         <KpiCard label="Open projects" value={summary.openProjects} tone="warning" />
         <KpiCard label="Completed projects" value={summary.completedProjects} tone="success" />
@@ -238,6 +248,6 @@ function UserDetailPage() {
           </SectionCard>
         </TabsContent>
       </Tabs>
-    </>
+    </div>
   );
 }

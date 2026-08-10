@@ -8,7 +8,7 @@ import {
   DataTableHead,
   DataTablePagination,
   DateCell,
-  IdLinkCell,
+  PrimaryCell,
   Table,
   TableBody,
   TableCell,
@@ -53,7 +53,7 @@ function MyTickets() {
 
   const { data: tickets = [], isLoading, isError, error } = useQuery({
     queryKey: ["tickets", { portal: true }],
-    queryFn: fetchTickets,
+    queryFn: () => fetchTickets(),
   });
 
   useEffect(() => {
@@ -63,7 +63,7 @@ function MyTickets() {
   }, [isError, error]);
 
   const filtered = useMemo(() => {
-    const list = Array.isArray(tickets) ? tickets : tickets.items;
+    const list = Array.isArray(tickets) ? tickets : (tickets?.items ?? []);
     const term = q.trim().toLowerCase();
     return list
       .filter((ticket) => (filters.status === ANY ? true : ticket.status === filters.status))
@@ -108,7 +108,7 @@ function MyTickets() {
         }
       />
       {isLoading ? (
-        <TableSkeleton rows={6} cols={7} />
+        <TableSkeleton rows={6} cols={6} />
       ) : filtered.length === 0 ? (
         <EmptyState title="No tickets match your filters." />
       ) : (
@@ -116,7 +116,7 @@ function MyTickets() {
           <Table className="min-w-3xl">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                {["Ticket ID", "Subject", "Category", "Priority", "Status", "Created", "Last update"].map((heading) => (
+                {["Ticket", "Category", "Priority", "Status", "Created", "Last update"].map((heading) => (
                   <DataTableHead key={heading}>{heading}</DataTableHead>
                 ))}
               </TableRow>
@@ -124,10 +124,14 @@ function MyTickets() {
             <TableBody>
               {filtered.map((ticket) => (
                 <TableRow key={ticket._id}>
-                  <TableCell>
-                    <IdLinkCell id={ticket.number} to="/portal/tickets/$ticketId" params={{ ticketId: ticket._id }} />
+                  <TableCell className="max-w-sm">
+                    <PrimaryCell
+                      id={ticket.number}
+                      title={ticket.subject}
+                      to="/portal/tickets/$ticketId"
+                      params={{ ticketId: ticket._id }}
+                    />
                   </TableCell>
-                  <TableCell className="max-w-sm truncate font-medium">{ticket.subject}</TableCell>
                   <TableCell className="text-muted-foreground">{getTicketCategoryLabel(ticket)}</TableCell>
                   <TableCell>
                     <PriorityBadge priority={ticket.priority} />

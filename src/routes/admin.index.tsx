@@ -123,7 +123,7 @@ export function AdminDashboard() {
           label="In progress"
           value={kpiValue(kpis?.inProgress.value)}
           icon={Loader2}
-          tone="teal"
+          tone="warning"
           trend={kpis?.inProgress.trend}
           to="/admin/tickets"
           search={{ status: "In Progress" }}
@@ -141,7 +141,7 @@ export function AdminDashboard() {
           label="Resolved"
           value={kpiValue(kpis?.resolved.value)}
           icon={CheckCircle2}
-          tone="lime"
+          tone="success"
           trend={kpis?.resolved.trend}
           to="/admin/tickets"
           search={{ status: "Resolved" }}

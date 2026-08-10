@@ -1,0 +1,1 @@
+import{o as e}from"./useStore-Bwb3bsWW.js";import{a as t}from"./guard-woxs3yvE.js";import{t as n}from"./notifications-panel-DkyXediA.js";var r=e(),i=()=>(0,r.jsx)(t,{roles:[`Client`],children:(0,r.jsx)(n,{})});export{i as component};

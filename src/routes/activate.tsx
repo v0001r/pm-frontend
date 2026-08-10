@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
+import { fieldInputClass, FormField } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GuestRoute } from "@/components/guard";
 import { PageHeader, SectionCard } from "@/components/primitives";
 import { getApiErrorMessage } from "@/lib/api";
+import { activateAccountSchema, validateForm } from "@/lib/form-validation";
 import { activateAccount } from "@/lib/customers";
 
 export const Route = createFileRoute("/activate")({
@@ -27,8 +28,18 @@ function ActivatePage() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function clearError(field: string) {
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md items-center px-4 py-12">
@@ -37,36 +48,60 @@ function ActivatePage() {
         <SectionCard>
           <form
             className="grid gap-4 p-4"
+            noValidate
             onSubmit={async (event) => {
               event.preventDefault();
-              setError("");
-              if (!token) return setError("Invalid or missing invitation link.");
-              if (password.length < 8) return setError("Password must be at least 8 characters.");
-              if (password !== confirm) return setError("Passwords do not match.");
+              setApiError("");
+              if (!token) {
+                setApiError("Invalid or missing invitation link.");
+                return;
+              }
+              const validation = validateForm(activateAccountSchema, { password, confirm });
+              if (!validation.success) {
+                setErrors(validation.errors);
+                return;
+              }
+              setErrors({});
               setLoading(true);
               try {
                 await activateAccount(token, password);
                 navigate({ to: "/", replace: true });
               } catch (err) {
-                setError(getApiErrorMessage(err, "Activation failed."));
+                setApiError(getApiErrorMessage(err, "Activation failed."));
               } finally {
                 setLoading(false);
               }
             }}
           >
-            {error && (
+            {apiError && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{apiError}</AlertDescription>
               </Alert>
             )}
-            <div className="grid gap-1.5">
-              <Label htmlFor="password">New password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="confirm">Confirm password</Label>
-              <Input id="confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
-            </div>
+            <FormField label="New password" htmlFor="password" error={errors.password}>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  clearError("password");
+                }}
+                className={fieldInputClass(errors.password)}
+              />
+            </FormField>
+            <FormField label="Confirm password" htmlFor="confirm" error={errors.confirm}>
+              <Input
+                id="confirm"
+                type="password"
+                value={confirm}
+                onChange={(e) => {
+                  setConfirm(e.target.value);
+                  clearError("confirm");
+                }}
+                className={fieldInputClass(errors.confirm)}
+              />
+            </FormField>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="size-4 animate-spin" />}
               Activate account

@@ -29,7 +29,7 @@ import {
 import { EmptyState, ProjectStatusBadge, TableSkeleton } from "@/components/primitives";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/lib/auth";
+import { useAuth, isStaff } from "@/lib/auth";
 import { fetchProjects } from "@/lib/projects";
 import { formatDate } from "@/lib/store";
 import { PROJECT_STATUSES, type ProjectStatus } from "@/lib/types";
@@ -90,7 +90,7 @@ const TABLE_COLUMNS = [
 
 function ProjectsPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "Admin";
+  const canManage = isStaff(user?.role);
 
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
@@ -162,7 +162,7 @@ function ProjectsPage() {
           onFilterClear={clearFilters}
           onExport={() => toast.info("Export coming soon.")}
           primaryAction={
-            isAdmin ? (
+            canManage ? (
               <Button size="sm" className="rounded-md" asChild>
                 <Link to="/admin/projects/new">
                   <Plus className="size-4" />
@@ -207,7 +207,7 @@ function ProjectsPage() {
               hasFilters ? "Try adjusting your search or filters." : "Create your first project to start tracking work."
             }
             action={
-              isAdmin ? (
+              canManage ? (
                 <Button size="sm" asChild>
                   <Link to="/admin/projects/new">
                     <Plus className="size-4" />
