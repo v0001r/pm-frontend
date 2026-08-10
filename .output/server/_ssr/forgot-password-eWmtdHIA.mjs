@@ -3,7 +3,7 @@ import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { S as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
 import { n as Button, o as forgotPassword, s as getApiErrorMessage } from "./button-DTh0UNAt.mjs";
 import { v as Link } from "../_libs/@tanstack/react-router+[...].mjs";
-import { I as LoaderCircle, N as MailCheck, vt as ArrowLeft, z as LifeBuoy } from "../_libs/lucide-react.mjs";
+import { I as LoaderCircle, N as MailCheck, _t as ArrowLeft, z as LifeBuoy } from "../_libs/lucide-react.mjs";
 import { t as Input } from "./input-DantDJEY.mjs";
 import { i as fieldInputClass, t as FormField } from "./password-Cq9Yhv-5.mjs";
 import { n as AlertDescription, t as Alert } from "./alert-RArkaWol.mjs";

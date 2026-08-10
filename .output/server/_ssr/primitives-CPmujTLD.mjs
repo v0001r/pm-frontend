@@ -1,7 +1,7 @@
 import { S as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
 import { a as cn } from "./button-DTh0UNAt.mjs";
 import { v as Link } from "../_libs/@tanstack/react-router+[...].mjs";
-import { U as Inbox, _t as ArrowUpRight, k as Minus, yt as ArrowDownRight } from "../_libs/lucide-react.mjs";
+import { U as Inbox, gt as ArrowUpRight, k as Minus, vt as ArrowDownRight } from "../_libs/lucide-react.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/primitives-CPmujTLD.js
 var import_jsx_runtime = require_jsx_runtime();
 var STATUSES = [

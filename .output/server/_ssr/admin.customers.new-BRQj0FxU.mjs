@@ -3,7 +3,7 @@ import { s as getApiErrorMessage } from "./button-DTh0UNAt.mjs";
 import { y as useNavigate } from "../_libs/@tanstack/react-router+[...].mjs";
 import { a as PageHeader, d as SectionCard } from "./primitives-CPmujTLD.mjs";
 import { n as toast } from "../_libs/sonner.mjs";
-import { ot as createCustomer } from "./router-FFtXCDLz.mjs";
+import { ot as createCustomer } from "./router-DyQZnl_T.mjs";
 import { v as RequireRole } from "./guard-BCYPieem.mjs";
 import { t as CustomerForm } from "./customer-form-BomHIj5d.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/admin.customers.new-BRQj0FxU.js
