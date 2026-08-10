@@ -13,8 +13,6 @@ import {
   LogOut,
   UserRound,
   UserCog,
-  ShieldCheck,
-  KeyRound,
   LifeBuoy,
   Settings,
   Inbox,
@@ -65,7 +63,6 @@ const adminNav: NavItem[] = [
   { label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Projects", to: "/admin/projects", icon: FolderKanban },
   { label: "Tickets", to: "/admin/tickets", icon: TicketIcon },
-  { label: "Create Ticket", to: "/admin/tickets/new", icon: Plus },
   { label: "Customers", to: "/admin/customers", icon: Users },
   { label: "Users", to: "/admin/users", icon: UserCog },
   { label: "Reports", to: "/admin/reports", icon: BarChart3 },
@@ -76,7 +73,6 @@ const agentNav: NavItem[] = [
   { label: "Dashboard", to: "/staff/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Projects", to: "/admin/projects", icon: FolderKanban },
   { label: "Tickets", to: "/admin/tickets", icon: TicketIcon },
-  { label: "Create Ticket", to: "/admin/tickets/new", icon: Plus },
   { label: "Customers", to: "/admin/customers", icon: Users },
 ];
 
@@ -84,7 +80,6 @@ const clientNav: NavItem[] = [
   { label: "Dashboard", to: "/client/dashboard", icon: LayoutDashboard, exact: true },
   { label: "My Projects", to: "/portal/projects", icon: FolderKanban },
   { label: "My Tickets", to: "/portal/tickets", icon: TicketIcon },
-  { label: "Create Ticket", to: "/portal/tickets/new", icon: Plus },
 ];
 
 function navItemClasses(active: boolean, collapsed: boolean) {
@@ -363,13 +358,7 @@ function ProfileMenu() {
   if (!user) return null;
   const name = fullName(user);
 
-  const items = [
-    { label: "My Profile", icon: UserRound, tab: "profile" },
-    { label: "Account Settings", icon: Settings, tab: "account" },
-    { label: "Security", icon: ShieldCheck, tab: "security" },
-    { label: "Notifications", icon: Bell, tab: "notifications" },
-    { label: "Change Password", icon: KeyRound, tab: "security" },
-  ];
+  const items = [{ label: "My Profile", icon: UserRound, tab: "profile" }];
 
   return (
     <>
@@ -399,10 +388,6 @@ function ProfileMenu() {
               {item.label}
             </DropdownMenuItem>
           ))}
-          <DropdownMenuItem onSelect={() => navigate({ to: "/help" })}>
-            <LifeBuoy className="size-4" />
-            Help &amp; Support
-          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setConfirm(true)}>
             <LogOut className="size-4" />

@@ -1,6 +1,6 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
-import { y as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
+import { S as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
 import { a as cn } from "./button-Cc9Bh2Gp.mjs";
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/separator-DMgOsoGU.js

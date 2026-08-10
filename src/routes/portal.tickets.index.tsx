@@ -5,21 +5,21 @@ import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { RequireRole } from "@/components/guard";
 import {
+  DataTableHead,
   DataTablePagination,
-  PrimaryCell,
+  DateCell,
+  IdLinkCell,
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/data-table";
 import {
   ListingFilterField,
   ListingFilterSelect,
+  ListingCardHeader,
   ListingPage,
-  ListingPageHeader,
-  ListingSearchRow,
   useListingFilters,
 } from "@/components/listing-page";
 import { EmptyState, PriorityBadge, StatusBadge, TableSkeleton } from "@/components/primitives";
@@ -76,23 +76,10 @@ function MyTickets() {
   };
 
   return (
-    <ListingPage
-      header={
-        <ListingPageHeader
-          title="My tickets"
-          description="All requests you have raised with the support team."
-          breadcrumbs={[{ label: "Portal", to: "/portal" }, { label: "Tickets" }]}
-          addAction={
-            <Button asChild size="sm" className="rounded-xl">
-              <Link to="/portal/tickets/new">
-                <Plus className="size-4" /> New ticket
-              </Link>
-            </Button>
-          }
-        />
-      }
-    >
-      <ListingSearchRow
+    <ListingPage>
+      <ListingCardHeader
+        title="My tickets"
+        description={`Total ${filtered.length} tickets`}
         value={q}
         onChange={setQ}
         placeholder="Search by ID or subject…"
@@ -101,6 +88,14 @@ function MyTickets() {
         activeFilterCount={activeCount}
         onFilterApply={apply}
         onFilterClear={clearFilters}
+        onExport={() => toast.info("Export coming soon.")}
+        primaryAction={
+          <Button asChild size="sm" className="rounded-md">
+            <Link to="/portal/tickets/new">
+              <Plus className="size-4" /> New ticket
+            </Link>
+          </Button>
+        }
         filterContent={
           <ListingFilterField label="Status">
             <ListingFilterSelect
@@ -121,8 +116,8 @@ function MyTickets() {
           <Table className="min-w-3xl">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                {["Ticket", "Category", "Priority", "Status", "Created", "Last update"].map((heading) => (
-                  <TableHead key={heading}>{heading}</TableHead>
+                {["Ticket ID", "Subject", "Category", "Priority", "Status", "Created", "Last update"].map((heading) => (
+                  <DataTableHead key={heading}>{heading}</DataTableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -130,22 +125,22 @@ function MyTickets() {
               {filtered.map((ticket) => (
                 <TableRow key={ticket._id}>
                   <TableCell>
-                    <PrimaryCell
-                      id={ticket.number}
-                      title={ticket.subject}
-                      to="/portal/tickets/$ticketId"
-                      params={{ ticketId: ticket._id }}
-                    />
+                    <IdLinkCell id={ticket.number} to="/portal/tickets/$ticketId" params={{ ticketId: ticket._id }} />
                   </TableCell>
-                  <TableCell className="max-w-sm truncate text-muted-foreground">{getTicketCategoryLabel(ticket)}</TableCell>
+                  <TableCell className="max-w-sm truncate font-medium">{ticket.subject}</TableCell>
+                  <TableCell className="text-muted-foreground">{getTicketCategoryLabel(ticket)}</TableCell>
                   <TableCell>
                     <PriorityBadge priority={ticket.priority} />
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={ticket.status} />
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(ticket.createdAt)}</TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(ticket.updatedAt, true)}</TableCell>
+                  <TableCell>
+                    <DateCell value={formatDate(ticket.createdAt)} />
+                  </TableCell>
+                  <TableCell>
+                    <DateCell value={formatDate(ticket.updatedAt, true)} />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

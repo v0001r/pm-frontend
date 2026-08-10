@@ -28,6 +28,8 @@ export interface Project {
   maxHours: number;
   progressPercentage: number;
   status: ProjectStatus;
+  memberCount?: number;
+  memberPreview?: { name: string }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -321,6 +323,8 @@ export interface CreateTicketPayload {
   projectId: string;
   categoryId: string;
   priority?: Priority;
+  assignedTo?: string;
+  status?: TicketStatus;
 }
 
 export interface UpdateTicketPayload {
@@ -494,6 +498,9 @@ export const STATUSES: TicketStatus[] = [
   "Reopened",
   "Cancelled",
 ];
+
+/** Statuses users can pick manually — assignment sets "Assigned" automatically. */
+export const SETTABLE_STATUSES = STATUSES.filter((status) => status !== "Assigned");
 
 export const PRIORITIES: Priority[] = ["P1", "P2", "P3", "P4"];
 

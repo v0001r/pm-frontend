@@ -1,6 +1,6 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
-import { y as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
+import { S as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
 import { t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { a as cn } from "./button-Cc9Bh2Gp.mjs";
 import { i as Trigger, n as List, r as Root2, t as Content } from "../_libs/radix-ui__react-tabs.mjs";

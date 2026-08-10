@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Calendar, ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, ChevronsUpDown, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
@@ -12,13 +17,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { UserAvatar } from "@/components/primitives";
+import { initials } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /* ── Toolbar ─────────────────────────────────────────────── */
 
 export function DataTableToolbar({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("flex flex-wrap items-center gap-2.5 border-b border-border/60 bg-muted/20 px-5 py-4", className)}>
+    <div className={cn("flex flex-wrap items-center gap-2.5 border-b border-border bg-card px-4 py-3", className)}>
       {children}
     </div>
   );
@@ -51,7 +57,7 @@ export function DataTablePagination({
   const pages = buildPageList(page, totalPages);
 
   return (
-    <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 bg-muted/10 px-5 py-3.5 text-sm">
+    <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-border bg-card px-4 py-3.5 text-sm">
       <p className="text-[13px] text-muted-foreground">
         Showing <span className="tabular font-medium text-foreground">{from}</span> to{" "}
         <span className="tabular font-medium text-foreground">{to}</span> of{" "}
@@ -60,24 +66,37 @@ export function DataTablePagination({
       </p>
       <div className="flex flex-wrap items-center gap-3">
         {onLimitChange && (
-          <Select value={String(limit)} onValueChange={(v) => onLimitChange(Number(v))}>
-            <SelectTrigger className="h-9 w-[7.5rem] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[10, 20, 50].map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n} per page
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Rows per page</span>
+            <Select value={String(limit)} onValueChange={(v) => onLimitChange(Number(v))}>
+              <SelectTrigger className="h-9 w-[4.5rem] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50].map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         )}
         <div className="flex items-center gap-1">
           <Button
             variant="outline"
             size="icon"
-            className="size-8 rounded-lg"
+            className="size-8 rounded-md"
+            disabled={page <= 1}
+            onClick={() => onPageChange(1)}
+            aria-label="First page"
+          >
+            <ChevronsLeft className="size-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8 rounded-md"
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
             aria-label="Previous page"
@@ -94,7 +113,7 @@ export function DataTablePagination({
                 key={p}
                 variant={p === page ? "default" : "ghost"}
                 size="icon"
-                className={cn("size-8 rounded-lg text-xs font-semibold", p === page && "shadow-sm")}
+                className={cn("size-8 rounded-md text-xs font-semibold", p === page && "shadow-sm")}
                 onClick={() => onPageChange(p as number)}
               >
                 {p}
@@ -104,12 +123,22 @@ export function DataTablePagination({
           <Button
             variant="outline"
             size="icon"
-            className="size-8 rounded-lg"
+            className="size-8 rounded-md"
             disabled={page >= totalPages}
             onClick={() => onPageChange(page + 1)}
             aria-label="Next page"
           >
             <ChevronRight className="size-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8 rounded-md"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(totalPages)}
+            aria-label="Last page"
+          >
+            <ChevronsRight className="size-4" />
           </Button>
         </div>
       </div>
@@ -129,6 +158,73 @@ function buildPageList(current: number, total: number): (number | "…")[] {
 
 /* ── Cell helpers ────────────────────────────────────────── */
 
+export function DataTableHead({
+  children,
+  className,
+  sortable = true,
+}: {
+  children: ReactNode;
+  className?: string;
+  sortable?: boolean;
+}) {
+  return (
+    <TableHead className={className}>
+      <span className="inline-flex items-center gap-1.5">
+        {children}
+        {sortable ? <ChevronsUpDown className="size-3.5 opacity-40" /> : null}
+      </span>
+    </TableHead>
+  );
+}
+
+export function IdLinkCell({
+  id,
+  to,
+  params,
+}: {
+  id: string;
+  to?: string;
+  params?: Record<string, string>;
+}) {
+  if (!to) {
+    return <span className="text-sm font-medium text-primary tabular-nums">{id}</span>;
+  }
+  return (
+    <Link to={to} params={params as never} className="text-sm font-medium text-primary hover:underline tabular-nums">
+      {id}
+    </Link>
+  );
+}
+
+export function TeamAvatarStack({
+  members,
+  extra = 0,
+}: {
+  members: { name: string; hue?: number }[];
+  extra?: number;
+}) {
+  if (members.length === 0 && extra === 0) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  const visible = members.slice(0, 2);
+  const overflow = extra > 0 ? extra : Math.max(0, members.length - visible.length);
+
+  return (
+    <div className="flex items-center">
+      <div className="flex -space-x-2">
+        {visible.map((member, index) => (
+          <UserAvatar key={`${member.name}-${index}`} name={member.name} hue={member.hue ?? 200 + index * 40} size={28} />
+        ))}
+        {overflow > 0 ? (
+          <span className="grid size-7 place-items-center rounded-full border-2 border-card bg-muted text-[10px] font-semibold text-muted-foreground">
+            +{overflow}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function PrimaryCell({
   id,
   title,
@@ -142,8 +238,8 @@ export function PrimaryCell({
 }) {
   const content = (
     <div className="min-w-0">
-      <p className="tabular text-[13px] font-bold text-primary">{id}</p>
-      <p className="mt-0.5 truncate text-sm font-medium text-foreground">{title}</p>
+      <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+      <p className="mt-0.5 truncate text-xs text-muted-foreground tabular-nums">{id}</p>
     </div>
   );
   if (!to) return content;
@@ -158,14 +254,22 @@ export function EntityCell({
   name,
   subtitle,
   hue = 265,
+  showAvatar = false,
 }: {
   name: string;
   subtitle?: string;
   hue?: number;
+  showAvatar?: boolean;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2.5">
-      <UserAvatar name={name} hue={hue} size={32} />
+    <div className="flex min-w-0 items-center gap-3">
+      {showAvatar ? (
+        <UserAvatar name={name} hue={hue} size={40} />
+      ) : (
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-xs font-semibold tracking-wide text-muted-foreground">
+          {initials(name)}
+        </span>
+      )}
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold text-foreground">{name}</p>
         {subtitle ? <p className="truncate text-xs text-muted-foreground">{subtitle}</p> : null}
@@ -208,9 +312,9 @@ export function ProgressCell({
   }[tone];
 
   return (
-    <div className="min-w-[7rem]">
-      <p className="tabular mb-1.5 text-xs font-semibold text-foreground">{value}%</p>
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+    <div className="flex min-w-[8.5rem] items-center gap-3">
+      <span className="tabular w-9 shrink-0 text-sm font-semibold text-foreground">{value}%</span>
+      <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
         <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
       </div>
     </div>
@@ -218,24 +322,36 @@ export function ProgressCell({
 }
 
 export function DateStack({ start, end }: { start: string; end?: string | null }) {
-  return (
-    <div className="space-y-1 text-xs text-muted-foreground">
-      <p className="flex items-center gap-1.5">
-        <Calendar className="size-3 shrink-0" />
-        <span>{start}</span>
-      </p>
-      {end ? (
-        <p className="flex items-center gap-1.5">
-          <Calendar className="size-3 shrink-0" />
-          <span>{end}</span>
-        </p>
-      ) : null}
-    </div>
-  );
+  return <span className="whitespace-nowrap text-sm text-foreground">{start}</span>;
+}
+
+export function DateCell({ value }: { value: string }) {
+  return <span className="whitespace-nowrap text-sm text-foreground">{value}</span>;
 }
 
 export function DataTableActions({ children }: { children: ReactNode }) {
-  return <div className="flex items-center justify-end gap-0.5">{children}</div>;
+  return <div className="flex items-center justify-end">{children}</div>;
+}
+
+const actionButtonClassName =
+  "size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground";
+
+export function DataTableRowMenu({ children }: { children: ReactNode }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className={actionButtonClassName} aria-label="More actions">
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="rounded-md">{children}</DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** @deprecated Use DataTableRowMenu */
+export function DataTableMoreButton({ children }: { children: ReactNode }) {
+  return <DataTableRowMenu>{children}</DataTableRowMenu>;
 }
 
 export function DataTableIconButton({
@@ -249,7 +365,7 @@ export function DataTableIconButton({
   onClick?: () => void;
   asChild?: boolean;
 }) {
-  const className = "size-8 rounded-lg text-muted-foreground hover:text-foreground";
+  const className = actionButtonClassName;
   if (asChild) {
     return (
       <Button variant="ghost" size="icon" className={className} asChild aria-label={label}>
@@ -258,22 +374,7 @@ export function DataTableIconButton({
     );
   }
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className={className}
-      onClick={onClick}
-      aria-label={label}
-    >
-      {children}
-    </Button>
-  );
-}
-
-export function DataTableMoreButton({ children }: { children: ReactNode }) {
-  return (
-    <Button variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground hover:text-foreground" aria-label="More actions">
-      <MoreHorizontal className="size-4" />
+    <Button variant="ghost" size="icon" className={className} onClick={onClick} aria-label={label}>
       {children}
     </Button>
   );

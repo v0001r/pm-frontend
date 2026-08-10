@@ -1,6 +1,6 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
-import { y as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
+import { S as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
 import { t as Input } from "./input-Cku46GUo.mjs";
 import { t as Label } from "./label-BZKlnMd2.mjs";
 import { t as FormActions } from "./form-actions-6tK-7ehz.mjs";

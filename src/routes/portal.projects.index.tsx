@@ -6,24 +6,26 @@ import { Eye, FolderKanban } from "lucide-react";
 import { RequireRole } from "@/components/guard";
 import {
   DataTableActions,
-  DataTableIconButton,
+  DataTableHead,
   DataTablePagination,
-  PrimaryCell,
+  DataTableRowMenu,
+  DateCell,
+  IdLinkCell,
   ProgressCell,
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/data-table";
-import { ListingPage, ListingPageHeader, ListingSearchRow } from "@/components/listing-page";
+import { ListingCardHeader, ListingPage } from "@/components/listing-page";
 import {
   EmptyState,
   ProjectStatusBadge,
   TableSkeleton,
 } from "@/components/primitives";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { getApiErrorMessage } from "@/lib/api";
 import { fetchProjects } from "@/lib/projects";
 import { formatDate } from "@/lib/store";
@@ -84,21 +86,10 @@ function PortalProjectsPage() {
   const currentPage = meta?.page ?? page;
 
   return (
-    <ListingPage
-      header={
-        <ListingPageHeader
-          title="My projects"
-          description="Projects linked to your organization account."
-          breadcrumbs={[{ label: "Portal", to: "/portal" }, { label: "Projects" }]}
-          addAction={
-            <Button size="sm" variant="outline" className="rounded-xl" asChild>
-              <Link to="/portal/tickets/new">Raise a ticket</Link>
-            </Button>
-          }
-        />
-      }
-    >
-      <ListingSearchRow
+    <ListingPage>
+      <ListingCardHeader
+        title="My projects"
+        description={meta ? `Total ${meta.total} projects` : "Loading projects…"}
         value={search}
         onChange={setSearch}
         placeholder="Search projects…"
@@ -107,6 +98,11 @@ function PortalProjectsPage() {
         onFilterApply={() => undefined}
         onFilterClear={() => setSearch("")}
         showFilters={false}
+        primaryAction={
+          <Button size="sm" variant="outline" className="rounded-md" asChild>
+            <Link to="/portal/tickets/new">Raise a ticket</Link>
+          </Button>
+        }
       />
 
         {isLoading ? (
@@ -122,8 +118,10 @@ function PortalProjectsPage() {
             <Table className="min-w-3xl">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  {["Project", "Status", "Progress", "End date", "Actions"].map((heading) => (
-                    <TableHead key={heading} className={heading === "Actions" ? "text-right" : undefined}>{heading}</TableHead>
+                  {["Project ID", "Project name", "Status", "Progress", "End date", "Action"].map((heading) => (
+                    <DataTableHead key={heading} className={heading === "Action" ? "text-right" : undefined} sortable={heading !== "Action"}>
+                      {heading}
+                    </DataTableHead>
                   ))}
                 </TableRow>
               </TableHeader>
@@ -134,29 +132,31 @@ function PortalProjectsPage() {
                   return (
                     <TableRow key={project._id}>
                       <TableCell>
-                        <PrimaryCell
+                        <IdLinkCell
                           id={project.projectId}
-                          title={project.name}
                           to="/portal/projects/$projectId"
                           params={{ projectId: project._id }}
                         />
                       </TableCell>
+                      <TableCell className="font-medium">{project.name}</TableCell>
                       <TableCell>
                         <ProjectStatusBadge status={project.status as ProjectStatus} />
                       </TableCell>
                       <TableCell>
                         <ProgressCell value={project.progressPercentage} tone={progressTone} />
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {project.endDate ? formatDate(project.endDate) : "—"}
+                      <TableCell>
+                        <DateCell value={project.endDate ? formatDate(project.endDate) : "—"} />
                       </TableCell>
                       <TableCell>
                         <DataTableActions>
-                          <DataTableIconButton label="View" asChild>
-                            <Link to="/portal/projects/$projectId" params={{ projectId: project._id }}>
-                              <Eye className="size-4" />
-                            </Link>
-                          </DataTableIconButton>
+                          <DataTableRowMenu>
+                            <DropdownMenuItem asChild>
+                              <Link to="/portal/projects/$projectId" params={{ projectId: project._id }}>
+                                <Eye className="size-4" /> View
+                              </Link>
+                            </DropdownMenuItem>
+                          </DataTableRowMenu>
                         </DataTableActions>
                       </TableCell>
                     </TableRow>

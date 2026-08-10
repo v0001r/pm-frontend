@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronRight, Search, SlidersHorizontal, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,7 +48,7 @@ export function ListingPageHeader({
 }) {
   const hasActions = exportAction || addAction || actions;
   return (
-    <header className="flex flex-wrap items-start justify-between gap-3">
+    <header className="flex flex-wrap items-start justify-between gap-3 px-4 pt-5 pb-3">
       <div className="min-w-0">
         {breadcrumbs ? <ListingBreadcrumbs items={breadcrumbs} /> : null}
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
@@ -65,11 +65,161 @@ export function ListingPageHeader({
   );
 }
 
-export function ListingPage({ header, children, className }: { header: ReactNode; children: ReactNode; className?: string }) {
+export function ListingPage({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("space-y-4", className)}>
-      {header}
-      <SectionCard className="overflow-hidden">{children}</SectionCard>
+    <SectionCard className={cn("overflow-hidden border border-border/70 bg-card shadow-sm", className)}>
+      {children}
+    </SectionCard>
+  );
+}
+
+type ListingSearchRowProps = {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  filterOpen: boolean;
+  onFilterOpenChange: (open: boolean) => void;
+  activeFilterCount?: number;
+  onFilterApply: () => void;
+  onFilterClear: () => void;
+  filterContent?: ReactNode;
+  filterTitle?: string;
+  showFilters?: boolean;
+  onExport?: () => void;
+  exportLabel?: string;
+  primaryAction?: ReactNode;
+  className?: string;
+  embedded?: boolean;
+};
+
+export function ListingCardHeader({
+  title,
+  description,
+  breadcrumbs,
+  value,
+  onChange,
+  placeholder = "Search…",
+  filterOpen,
+  onFilterOpenChange,
+  activeFilterCount = 0,
+  onFilterApply,
+  onFilterClear,
+  filterContent,
+  filterTitle = "Filters",
+  showFilters = true,
+  onExport,
+  exportLabel = "Export",
+  primaryAction,
+  className,
+}: {
+  title: string;
+  description?: string;
+  breadcrumbs?: BreadcrumbItem[];
+} & ListingSearchRowProps) {
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-3 border-b border-border bg-card px-4 py-3",
+        className,
+      )}
+    >
+      <div className="min-w-[7.5rem] shrink-0">
+        {breadcrumbs ? <ListingBreadcrumbs items={breadcrumbs} /> : null}
+        <h1 className="text-xl font-bold tracking-tight text-foreground">{title}</h1>
+        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+      </div>
+
+      <div className="relative min-w-[10rem] flex-1">
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          className="h-10 rounded-md border-border bg-background pl-9"
+        />
+      </div>
+
+      <ListingToolbarActions
+        filterOpen={filterOpen}
+        onFilterOpenChange={onFilterOpenChange}
+        activeFilterCount={activeFilterCount}
+        onFilterApply={onFilterApply}
+        onFilterClear={onFilterClear}
+        filterContent={filterContent}
+        filterTitle={filterTitle}
+        showFilters={showFilters}
+        onExport={onExport}
+        exportLabel={exportLabel}
+        primaryAction={primaryAction}
+      />
+    </div>
+  );
+}
+
+function ListingToolbarActions({
+  filterOpen,
+  onFilterOpenChange,
+  activeFilterCount = 0,
+  onFilterApply,
+  onFilterClear,
+  filterContent,
+  filterTitle = "Filters",
+  showFilters = true,
+  onExport,
+  exportLabel = "Export",
+  primaryAction,
+}: Pick<
+  ListingSearchRowProps,
+  | "filterOpen"
+  | "onFilterOpenChange"
+  | "activeFilterCount"
+  | "onFilterApply"
+  | "onFilterClear"
+  | "filterContent"
+  | "filterTitle"
+  | "showFilters"
+  | "onExport"
+  | "exportLabel"
+  | "primaryAction"
+>) {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-2">
+      {showFilters && filterContent ? (
+        <Popover open={filterOpen} onOpenChange={onFilterOpenChange}>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="outline" size="sm" className="relative rounded-md">
+              <SlidersHorizontal className="size-4" />
+              Filters
+              {activeFilterCount > 0 ? (
+                <span className="ml-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-[min(100vw-2rem,22rem)] rounded-xl p-0">
+            <div className="border-b px-4 py-3">
+              <p className="text-sm font-semibold text-foreground">{filterTitle}</p>
+            </div>
+            <div className="max-h-[min(70vh,24rem)] space-y-4 overflow-y-auto p-4">{filterContent}</div>
+            <div className="flex gap-2 border-t p-3">
+              <Button type="button" variant="outline" className="flex-1 rounded-md" onClick={onFilterClear}>
+                Clear
+              </Button>
+              <Button type="button" className="flex-1 rounded-md" onClick={onFilterApply}>
+                Apply
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+      ) : null}
+      {onExport ? (
+        <Button type="button" variant="outline" size="sm" className="rounded-md" onClick={onExport}>
+          <Upload className="size-4" />
+          {exportLabel}
+        </Button>
+      ) : null}
+      {primaryAction}
     </div>
   );
 }
@@ -86,66 +236,49 @@ export function ListingSearchRow({
   filterContent,
   filterTitle = "Filters",
   showFilters = true,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  filterOpen: boolean;
-  onFilterOpenChange: (open: boolean) => void;
-  activeFilterCount?: number;
-  onFilterApply: () => void;
-  onFilterClear: () => void;
-  filterContent?: ReactNode;
-  filterTitle?: string;
-  showFilters?: boolean;
-}) {
+  onExport,
+  exportLabel = "Export",
+  primaryAction,
+  className,
+  embedded = false,
+}: ListingSearchRowProps) {
   return (
-    <div className="flex items-center gap-2.5 border-b border-border/60 px-4 py-3 sm:px-5">
-      <div className="relative min-w-0 flex-1">
-        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-2 bg-card px-4 py-3",
+        embedded ? "pt-0" : "border-b border-border",
+        className,
+      )}
+    >
+      <div className="relative min-w-[12rem] flex-1">
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="h-10 rounded-xl border-border/60 bg-surface pl-10"
+          className="h-10 rounded-md border-border bg-background pl-9"
         />
       </div>
-      {showFilters && filterContent ? (
-        <Popover open={filterOpen} onOpenChange={onFilterOpenChange}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="relative size-10 shrink-0 rounded-xl"
-            aria-label="Open filters"
-          >
-            <SlidersHorizontal className="size-4" />
-            {activeFilterCount > 0 ? (
-              <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                {activeFilterCount}
-              </span>
-            ) : null}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-[min(100vw-2rem,22rem)] rounded-xl p-0">
-          <div className="border-b px-4 py-3">
-            <p className="text-sm font-semibold text-foreground">{filterTitle}</p>
-          </div>
-          <div className="max-h-[min(70vh,24rem)] space-y-4 overflow-y-auto p-4">{filterContent}</div>
-          <div className="flex gap-2 border-t p-3">
-            <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={onFilterClear}>
-              Clear
-            </Button>
-            <Button type="button" className="flex-1 rounded-xl" onClick={onFilterApply}>
-              Apply
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
-      ) : null}
+      <ListingToolbarActions
+        filterOpen={filterOpen}
+        onFilterOpenChange={onFilterOpenChange}
+        activeFilterCount={activeFilterCount}
+        onFilterApply={onFilterApply}
+        onFilterClear={onFilterClear}
+        filterContent={filterContent}
+        filterTitle={filterTitle}
+        showFilters={showFilters}
+        onExport={onExport}
+        exportLabel={exportLabel}
+        primaryAction={primaryAction}
+      />
     </div>
   );
+}
+
+/** @deprecated Use ListingSearchRow — kept for compatibility */
+export function ListingToolbar(props: Parameters<typeof ListingSearchRow>[0]) {
+  return <ListingSearchRow {...props} />;
 }
 
 export function ListingFilterField({ label, children }: { label: string; children: ReactNode }) {

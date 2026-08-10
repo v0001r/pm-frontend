@@ -1,25 +1,25 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowLeft,
-  BarChart3,
   Building2,
-  CalendarRange,
   CheckCircle2,
   Clock3,
   Copy,
   FolderKanban,
-  MoreHorizontal,
   Pencil,
+  Plus,
   Ticket,
+  Trash2,
   UserPlus,
   Users,
 } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { LucideProps } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
+import { AssignProjectMemberDialog } from "@/components/assign-project-member-dialog";
 import { RequireRole } from "@/components/guard";
 import {
   DataTableActions,
@@ -32,22 +32,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/data-table";
-import { EmptyState, ProjectStatusBadge, StatusBadge, TableSkeleton, UserAvatar } from "@/components/primitives";
-import { Button } from "@/components/ui/button";
+import { EmptyState, ProjectStatusBadge, StatusBadge, TableSkeleton } from "@/components/primitives";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { getApiErrorMessage } from "@/lib/api";
 import { describeProjectActivity } from "@/lib/project-activity";
-import { fetchProject, fetchProjectActivities, fetchProjectMembers } from "@/lib/projects";
+import { fetchProject, fetchProjectActivities, fetchProjectMembers, removeProjectMember } from "@/lib/projects";
 import { fetchTicketsPage } from "@/lib/tickets";
 import { formatDate, relativeTime } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import type { TicketStatus } from "@/lib/types";
+import type { ProjectMember, TicketStatus } from "@/lib/types";
 
 export const Route = createFileRoute("/admin/projects/$projectId/")({
   ssr: false,
@@ -87,17 +91,15 @@ function OverviewStatCard({
   }[tone];
 
   return (
-    <div className="rounded-md border border-border/60 bg-card p-4 shadow-sm">
+    <div className="flex h-full min-h-[7.5rem] flex-col rounded-md border border-border/60 bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-foreground">{value}</p>
-          {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
-        </div>
+        <p className="min-h-10 flex-1 text-xs font-medium leading-snug text-muted-foreground">{label}</p>
         <span className={cn("grid size-9 shrink-0 place-items-center rounded-md", toneClass)}>
           <Icon className="size-4" />
         </span>
       </div>
+      <p className="mt-auto pt-3 text-2xl font-bold tracking-tight text-foreground">{value}</p>
+      <p className="min-h-4 text-xs text-muted-foreground">{hint ?? ""}</p>
     </div>
   );
 }
@@ -155,7 +157,11 @@ function groupTicketStatuses(items: { status: TicketStatus }[]) {
 function ProjectDetailPage() {
   const { projectId } = Route.useParams();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const canEdit = user?.role === "Admin" || user?.role === "Staff";
+  const isAdmin = user?.role === "Admin";
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<ProjectMember | null>(null);
 
   const projectQuery = useQuery({
     queryKey: ["project", projectId],
@@ -163,9 +169,23 @@ function ProjectDetailPage() {
   });
 
   const membersQuery = useQuery({
-    queryKey: ["project-members", projectId, { preview: true }],
-    queryFn: () => fetchProjectMembers(projectId, { page: 1, limit: 10 }),
+    queryKey: ["project-members", projectId, { overview: true }],
+    queryFn: () => fetchProjectMembers(projectId, { page: 1, limit: 100 }),
     enabled: !!projectQuery.data,
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (memberId: string) => removeProjectMember(projectId, memberId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-members", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-activities", projectId] });
+      toast.success("Member removed successfully");
+      setMemberToRemove(null);
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "Failed to remove member"));
+    },
   });
 
   const activitiesQuery = useQuery({
@@ -193,6 +213,11 @@ function ProjectDetailPage() {
   const ticketItems = ticketsQuery.data?.items ?? [];
   const ticketChartData = useMemo(() => groupTicketStatuses(ticketItems), [ticketItems]);
   const ticketTotal = overview?.totalTickets ?? ticketItems.length;
+  const allocatedHours = useMemo(
+    () => members.reduce((sum, member) => sum + member.internalHours + member.externalHours, 0),
+    [members],
+  );
+  const assignedEmployeeIds = useMemo(() => members.map((member) => member.employeeId), [members]);
 
   if (projectQuery.isLoading) {
     return <TableSkeleton rows={10} cols={4} />;
@@ -262,7 +287,7 @@ function ProjectDetailPage() {
         </div>
       </section>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <OverviewStatCard label="Team Members" value={overview?.totalMembers ?? 0} icon={Users} tone="primary" />
         <OverviewStatCard label="Total Tickets" value={overview?.totalTickets ?? 0} icon={Ticket} />
         <OverviewStatCard
@@ -292,53 +317,69 @@ function ProjectDetailPage() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <PanelCard title="Project Details" description="Schedule, customer and scope">
-          <div className="space-y-5 p-5 text-sm">
+        <PanelCard title="Project Details">
+          <dl className="grid gap-x-6 gap-y-4 p-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Customer</p>
-              <p className="mt-1 font-medium text-foreground">{project.customerName ?? "—"}</p>
-              {project.customerEmail ? <p className="text-muted-foreground">{project.customerEmail}</p> : null}
+              <dt className="text-muted-foreground">Customer</dt>
+              <dd className="mt-1 font-medium">{project.customerName ?? "—"}</dd>
+              {project.customerEmail ? <dd className="text-muted-foreground">{project.customerEmail}</dd> : null}
             </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Start Date</p>
-                <p className="mt-1 flex items-center gap-2 font-medium">
-                  <CalendarRange className="size-4 text-muted-foreground" />
-                  {formatDate(project.startDate)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">End Date</p>
-                <p className="mt-1 flex items-center gap-2 font-medium">
-                  <CalendarRange className="size-4 text-muted-foreground" />
-                  {project.endDate ? formatDate(project.endDate) : "No end date"}
-                </p>
-              </div>
-            </div>
-
             <div>
-              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Maximum Hours</p>
-              <p className="tabular mt-1 font-medium">{project.maxHours}h</p>
+              <dt className="text-muted-foreground">Start date</dt>
+              <dd className="mt-1 font-medium">{formatDate(project.startDate)}</dd>
             </div>
-
+            <div>
+              <dt className="text-muted-foreground">End date</dt>
+              <dd className="mt-1 font-medium">{project.endDate ? formatDate(project.endDate) : "No end date"}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Maximum hours</dt>
+              <dd className="tabular mt-1 font-medium">{project.maxHours}h</dd>
+            </div>
             {project.creatorName ? (
               <div>
-                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Created By</p>
-                <p className="mt-1 font-medium">{project.creatorName}</p>
+                <dt className="text-muted-foreground">Created by</dt>
+                <dd className="mt-1 font-medium">{project.creatorName}</dd>
               </div>
             ) : null}
-
-            {project.description ? (
-              <div>
-                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Description</p>
-                <p className="mt-1 leading-6 text-muted-foreground">{project.description}</p>
-              </div>
-            ) : null}
-
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Overall Progress</p>
-              <div className="flex items-center gap-3">
+              <dt className="text-muted-foreground">Created on</dt>
+              <dd className="mt-1 font-medium">{formatDate(project.createdAt, true)}</dd>
+            </div>
+            {/* <div>
+              <dt className="text-muted-foreground">Project ID</dt>
+              <dd className="mt-1 flex items-center gap-1.5 font-medium">
+                {project.projectId}
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-6"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(project.projectId);
+                    toast.success("Project ID copied.");
+                  }}
+                >
+                  <Copy className="size-3" />
+                  <span className="sr-only">Copy project ID</span>
+                </Button>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Status</dt>
+              <dd className="mt-1">
+                <ProjectStatusBadge status={project.status} />
+              </dd>
+            </div>
+            {project.label ? (
+              <div>
+                <dt className="text-muted-foreground">Label</dt>
+                <dd className="mt-1 font-medium">{project.label}</dd>
+              </div>
+            ) : null} */}
+            <div className="sm:col-span-2 lg:col-span-3">
+              <dt className="text-muted-foreground">Progress</dt>
+              <dd className="mt-2 flex items-center gap-3">
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-primary transition-all"
@@ -346,20 +387,47 @@ function ProjectDetailPage() {
                   />
                 </div>
                 <span className="tabular text-sm font-medium text-muted-foreground">{project.progressPercentage}%</span>
-              </div>
+              </dd>
             </div>
-          </div>
+            {project.description ? (
+              <div className="sm:col-span-2 lg:col-span-3">
+                <dt className="text-muted-foreground">Description</dt>
+                <dd className="mt-1 leading-6 text-muted-foreground">{project.description}</dd>
+              </div>
+            ) : null}
+          </dl>
+
+          {canEdit ? (
+            <div className="flex flex-wrap gap-2 border-t border-border/60 px-5 py-3">
+              <Button size="sm" variant="outline" asChild>
+                <Link to="/admin/tickets/new" search={{ projectId }}>
+                  <Ticket className="size-4" />
+                  Add ticket
+                </Link>
+              </Button>
+              {isAdmin ? (
+                <Button size="sm" variant="outline" onClick={() => setAssignOpen(true)}>
+                  <UserPlus className="size-4" />
+                  Add member
+                </Button>
+              ) : null}
+              <Button size="sm" variant="outline" asChild>
+                <Link to="/admin/tickets" search={{ projectId }}>
+                  <FolderKanban className="size-4" />
+                  View tickets
+                </Link>
+              </Button>
+            </div>
+          ) : null}
         </PanelCard>
 
         <PanelCard
           title="Team Members"
-          description="Assigned employees on this project"
           actions={
-            canEdit ? (
-              <Button size="sm" variant="outline" asChild>
-                <Link to="/admin/projects/$projectId/members" params={{ projectId }}>
-                  Manage Members
-                </Link>
+            isAdmin ? (
+              <Button size="sm" variant="outline" onClick={() => setAssignOpen(true)}>
+                <Plus className="size-4" />
+                Add member
               </Button>
             ) : null
           }
@@ -371,12 +439,20 @@ function ProjectDetailPage() {
               icon={Users}
               title="No members yet"
               description="Assign employees to this project to start tracking work."
+              action={
+                isAdmin ? (
+                  <Button size="sm" onClick={() => setAssignOpen(true)}>
+                    <Plus className="size-4" />
+                    Add member
+                  </Button>
+                ) : undefined
+              }
             />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  {["Member", "Role", "Status", "Hours", "Assigned On", ""].map((heading) => (
+                  {["Member", "Status", "Hours", "Assigned On", ...(isAdmin ? [""] : [])].map((heading) => (
                     <TableHead key={heading || "actions"}>{heading}</TableHead>
                   ))}
                 </TableRow>
@@ -385,12 +461,8 @@ function ProjectDetailPage() {
                 {members.map((member) => (
                   <TableRow key={member._id}>
                     <TableCell>
-                      <div className="flex items-center gap-3">
-                        <UserAvatar name={member.employeeName} size={32} />
-                        <EntityCell name={member.employeeName} subtitle={member.designation || member.status} />
-                      </div>
+                      <EntityCell name={member.employeeName} subtitle={member.designation || member.status} />
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{member.designation || "—"}</TableCell>
                     <TableCell>
                       <StatusBadge status={member.status} />
                     </TableCell>
@@ -400,18 +472,18 @@ function ProjectDetailPage() {
                     <TableCell className="text-muted-foreground">
                       {member.assignedDate ? formatDate(member.assignedDate) : "—"}
                     </TableCell>
-                    <TableCell>
-                      {canEdit ? (
+                    {isAdmin ? (
+                      <TableCell>
                         <DataTableActions>
-                          <DataTableIconButton asChild>
-                            <Link to="/admin/projects/$projectId/members" params={{ projectId }}>
-                              <MoreHorizontal className="size-4" />
-                              <span className="sr-only">Manage member</span>
-                            </Link>
+                          <DataTableIconButton
+                            label="Remove member"
+                            onClick={() => setMemberToRemove(member)}
+                          >
+                            <Trash2 className="size-4 text-destructive" />
                           </DataTableIconButton>
                         </DataTableActions>
-                      ) : null}
-                    </TableCell>
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 ))}
               </TableBody>
@@ -420,7 +492,7 @@ function ProjectDetailPage() {
         </PanelCard>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-3">
+      <div className="grid gap-5 xl:grid-cols-2">
         <PanelCard title="Activity Timeline" description="Recent changes on this project">
           {activitiesQuery.isLoading ? (
             <TableSkeleton rows={5} cols={2} />
@@ -448,98 +520,6 @@ function ProjectDetailPage() {
               ))}
             </ol>
           )}
-        </PanelCard>
-
-        <PanelCard title="Key Information & Quick Actions">
-          <div className="space-y-5 p-5">
-            <dl className="grid gap-3 text-sm">
-              <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
-                <dt className="text-muted-foreground">Project ID</dt>
-                <dd className="flex items-center gap-2 font-medium">
-                  {project.projectId}
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="size-7"
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(project.projectId);
-                      toast.success("Project ID copied.");
-                    }}
-                  >
-                    <Copy className="size-3.5" />
-                    <span className="sr-only">Copy project ID</span>
-                  </Button>
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
-                <dt className="text-muted-foreground">Status</dt>
-                <dd>
-                  <ProjectStatusBadge status={project.status} />
-                </dd>
-              </div>
-              {project.label ? (
-                <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
-                  <dt className="text-muted-foreground">Environment</dt>
-                  <dd className="font-medium">{project.label}</dd>
-                </div>
-              ) : null}
-              <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
-                <dt className="text-muted-foreground">Customer</dt>
-                <dd className="text-right font-medium">{project.customerName ?? "—"}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-muted-foreground">Created On</dt>
-                <dd className="text-right font-medium">{formatDate(project.createdAt, true)}</dd>
-              </div>
-            </dl>
-
-            {canEdit ? (
-              <div>
-                <p className="mb-3 text-sm font-semibold text-foreground">Quick Actions</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="h-auto flex-col gap-2 py-4" asChild>
-                    <Link to="/admin/tickets/new" search={{ projectId }}>
-                      <Ticket className="size-5 text-primary" />
-                      <span>Add Ticket</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-auto flex-col gap-2 py-4" asChild>
-                    <Link to="/admin/projects/$projectId/members" params={{ projectId }}>
-                      <UserPlus className="size-5 text-primary" />
-                      <span>Add Member</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-auto flex-col gap-2 py-4" asChild>
-                    <Link to="/admin/tickets" search={{ projectId }}>
-                      <FolderKanban className="size-5 text-primary" />
-                      <span>View Tickets</span>
-                    </Link>
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-auto flex-col gap-2 py-4">
-                        <MoreHorizontal className="size-5 text-primary" />
-                        <span>More</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/projects/$projectId/edit" params={{ projectId }}>
-                          Edit project
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/projects/$projectId/members" params={{ projectId }}>
-                          Manage members
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            ) : null}
-          </div>
         </PanelCard>
 
         <PanelCard title="Ticket Summary" description="Status breakdown for this project">
@@ -614,6 +594,44 @@ function ProjectDetailPage() {
           )}
         </PanelCard>
       </div>
+
+      {isAdmin && project ? (
+        <AssignProjectMemberDialog
+          projectId={projectId}
+          open={assignOpen}
+          onOpenChange={setAssignOpen}
+          assignedEmployeeIds={assignedEmployeeIds}
+          maxHours={project.maxHours}
+          allocatedHours={allocatedHours}
+        />
+      ) : null}
+
+      <AlertDialog open={!!memberToRemove} onOpenChange={(open) => !open && setMemberToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove team member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {memberToRemove
+                ? `${memberToRemove.employeeName} will be removed from this project. They cannot be removed if they have pending tickets or active timesheets.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={removeMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (memberToRemove) {
+                  removeMutation.mutate(memberToRemove._id);
+                }
+              }}
+            >
+              {removeMutation.isPending ? "Removing..." : "Remove member"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

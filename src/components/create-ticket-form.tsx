@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -14,8 +14,8 @@ import { useAuth } from "@/lib/auth";
 import { fetchCategories } from "@/lib/categories";
 import { fetchProjects } from "@/lib/projects";
 import { createTicket } from "@/lib/tickets";
-import { fetchClientUsers } from "@/lib/users";
-import { PRIORITIES, SLA_MATRIX, fullName, type Priority } from "@/lib/types";
+import { fetchEmployees } from "@/lib/users";
+import { PRIORITIES, SLA_MATRIX, SETTABLE_STATUSES, fullName, type Priority, type TicketStatus } from "@/lib/types";
 
 interface CreateTicketFormProps {
   initialProjectId?: string;
@@ -27,13 +27,15 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
   const { user } = useAuth();
   const navigate = useNavigate();
   const isClient = user?.role === "Client";
+  const isStaffOrAdmin = user?.role === "Admin" || user?.role === "Staff";
 
   const [subject, setSubject] = useState("");
   const [projectId, setProjectId] = useState(initialProjectId ?? "");
   const [categoryId, setCategoryId] = useState("");
   const [priority, setPriority] = useState<Priority>("P3");
+  const [status, setStatus] = useState<TicketStatus>("New");
   const [description, setDescription] = useState("");
-  const [requesterId, setRequesterId] = useState(user?.id ?? "");
+  const [assignedTo, setAssignedTo] = useState("");
   const [files, setFiles] = useState<{ name: string; size: string }[]>([]);
 
   const projectsQuery = useQuery({
@@ -47,21 +49,15 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
     queryFn: fetchCategories,
   });
 
-  const clientsQuery = useQuery({
-    queryKey: ["client-users"],
-    queryFn: fetchClientUsers,
-    enabled: !isClient,
+  const employeesQuery = useQuery({
+    queryKey: ["employees"],
+    queryFn: fetchEmployees,
+    enabled: isStaffOrAdmin,
   });
 
   const projects = projectsQuery.data?.items ?? [];
   const categories = categoriesQuery.data ?? [];
-  const clientUsers = clientsQuery.data ?? [];
-
-  useEffect(() => {
-    if (user?.id) {
-      setRequesterId(user.id);
-    }
-  }, [user?.id]);
+  const employees = employeesQuery.data ?? [];
 
   useEffect(() => {
     if (!projectId && projects[0]) {
@@ -81,24 +77,6 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
     }
   }, [initialProjectId]);
 
-  const selectedProject = useMemo(
-    () => projects.find((project) => project._id === projectId),
-    [projects, projectId],
-  );
-
-  const requesterOptions = useMemo(() => {
-    if (isClient || !user) return [];
-    const options = clientUsers.map((client) => ({
-      id: client._id,
-      label: client.company ? `${fullName(client)} · ${client.company}` : fullName(client),
-    }));
-    const selfLabel = `${fullName(user)} (me)`;
-    if (!options.some((option) => option.id === user.id)) {
-      options.unshift({ id: user.id, label: selfLabel });
-    }
-    return options;
-  }, [clientUsers, isClient, user]);
-
   const mutation = useMutation({
     mutationFn: async () => {
       if (!user) {
@@ -110,9 +88,6 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
       if (!categoryId) {
         throw new Error("Select a category for this ticket");
       }
-      if (!isClient && !requesterId) {
-        throw new Error("Select who this ticket is for");
-      }
       if (subject.trim().length < 5) {
         throw new Error("Subject must be at least 5 characters");
       }
@@ -123,10 +98,12 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
       return createTicket({
         subject: subject.trim(),
         description: description.trim(),
-        clientId: isClient ? user.id : requesterId,
+        ...(isClient ? { clientId: user.id } : {}),
         projectId,
         categoryId,
         priority,
+        ...(isStaffOrAdmin && !(assignedTo && status === "New") ? { status } : {}),
+        ...(isStaffOrAdmin && assignedTo ? { assignedTo } : {}),
       });
     },
     onSuccess: (ticket) => {
@@ -138,7 +115,8 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
     },
   });
 
-  const loading = projectsQuery.isLoading || categoriesQuery.isLoading || (!isClient && clientsQuery.isLoading);
+  const loading =
+    projectsQuery.isLoading || categoriesQuery.isLoading || (isStaffOrAdmin && employeesQuery.isLoading);
 
   return (
     <>
@@ -170,21 +148,30 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
             />
           </div>
 
-          {!isClient ? (
+          {isStaffOrAdmin ? (
             <div className="grid gap-1.5">
-              <Label>Requester</Label>
-              <Select value={requesterId} onValueChange={setRequesterId} disabled={loading || requesterOptions.length === 0}>
+              <Label>Assign to</Label>
+              <Select
+                value={assignedTo || "unassigned"}
+                onValueChange={(value) => setAssignedTo(value === "unassigned" ? "" : value)}
+                disabled={loading}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder={loading ? "Loading users..." : "Select requester"} />
+                  <SelectValue placeholder={loading ? "Loading users..." : "Select assignee"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {requesterOptions.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.label}
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {fullName(employee)}
+                      {employee.designation ? ` · ${employee.designation}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Assigning a user marks the ticket as assigned automatically.
+              </p>
             </div>
           ) : null}
 
@@ -209,11 +196,6 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
                   )}
                 </SelectContent>
               </Select>
-              {selectedProject ? (
-                <p className="text-xs text-muted-foreground">
-                  Status: {selectedProject.status} · Progress: {selectedProject.progressPercentage}%
-                </p>
-              ) : null}
             </div>
 
             <div className="grid gap-1.5">
@@ -233,23 +215,41 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
             </div>
           </div>
 
-          <div className="grid gap-1.5 sm:max-w-xs">
-            <Label>Priority</Label>
-            <Select value={priority} onValueChange={(value) => setPriority(value as Priority)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PRIORITIES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Response within {SLA_MATRIX[priority].response} · Resolution within {SLA_MATRIX[priority].resolution}
-            </p>
+          <div className={`grid gap-4 ${isStaffOrAdmin ? "sm:grid-cols-2" : ""}`}>
+            <div className="grid gap-1.5">
+              <Label>Priority</Label>
+              <Select value={priority} onValueChange={(value) => setPriority(value as Priority)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITIES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+             
+            </div>
+
+            {isStaffOrAdmin ? (
+              <div className="grid gap-1.5">
+                <Label>Status</Label>
+                <Select value={status} onValueChange={(value) => setStatus(value as TicketStatus)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SETTABLE_STATUSES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
           </div>
 
           <div className="grid gap-1.5">

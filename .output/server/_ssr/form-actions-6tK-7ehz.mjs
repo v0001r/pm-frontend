@@ -1,4 +1,4 @@
-import { y as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
+import { S as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
 import { n as Button } from "./button-Cc9Bh2Gp.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/form-actions-6tK-7ehz.js
 var import_jsx_runtime = require_jsx_runtime();

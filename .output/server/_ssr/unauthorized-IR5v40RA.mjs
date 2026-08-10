@@ -1,4 +1,4 @@
-import { y as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
+import { S as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
 import { c as homeFor, d as useAuth, n as Button } from "./button-Cc9Bh2Gp.mjs";
 import { v as Link } from "../_libs/@tanstack/react-router+[...].mjs";
 import { y as ShieldAlert } from "../_libs/lucide-react.mjs";

@@ -2,38 +2,33 @@ import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Eye, FolderKanban, MoreHorizontal, Pencil, Plus } from "lucide-react";
+import { Eye, FolderKanban, Pencil, Plus } from "lucide-react";
 import { RequireRole } from "@/components/guard";
 import {
   DataTableActions,
-  DataTableIconButton,
+  DataTableHead,
   DataTablePagination,
-  DateStack,
-  EntityCell,
-  LabelPill,
-  PrimaryCell,
+  DataTableRowMenu,
+  DateCell,
+  IdLinkCell,
   ProgressCell,
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
+  TeamAvatarStack,
 } from "@/components/data-table";
 import {
   ListingFilterField,
   ListingFilterSelect,
+  ListingCardHeader,
   ListingPage,
-  ListingPageHeader,
-  ListingSearchRow,
   useListingFilters,
 } from "@/components/listing-page";
-import {
-  EmptyState,
-  ProjectStatusBadge,
-  TableSkeleton,
-} from "@/components/primitives";
+import { EmptyState, ProjectStatusBadge, TableSkeleton } from "@/components/primitives";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
 import { fetchProjects } from "@/lib/projects";
 import { formatDate } from "@/lib/store";
@@ -59,8 +54,6 @@ export const Route = createFileRoute("/admin/projects/")({
     meta: [
       { title: "Projects — Helpdesk Admin" },
       { name: "description", content: "Browse and manage customer projects with progress, status and deadlines." },
-      { property: "og:title", content: "Projects — Helpdesk Admin" },
-      { property: "og:description", content: "Browse and manage customer projects." },
     ],
   }),
   component: () => (
@@ -83,6 +76,18 @@ const SORT_OPTIONS = [
 
 const FILTER_DEFAULTS = { status: ANY, sort: "updated" };
 
+const TABLE_COLUMNS = [
+  "Project ID",
+  "Project name",
+  "Customer",
+  "Status",
+  "Team members",
+  "Start date",
+  "End date",
+  "Progress",
+  "Action",
+] as const;
+
 function ProjectsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "Admin";
@@ -91,6 +96,7 @@ function ProjectsPage() {
   const [debouncedQ, setDebouncedQ] = useState("");
   const { applied: filters, draft, patchDraft, apply, clear, open, setOpen, activeCount } = useListingFilters(FILTER_DEFAULTS);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(PAGE_SIZE);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQ(q.trim()), 300);
@@ -99,20 +105,20 @@ function ProjectsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQ, filters.status, filters.sort]);
+  }, [debouncedQ, filters.status, filters.sort, limit]);
 
   const sortConfig = SORT_OPTIONS.find((option) => option.value === filters.sort) ?? SORT_OPTIONS[0]!;
 
   const queryParams = useMemo(
     () => ({
       page,
-      limit: PAGE_SIZE,
+      limit,
       ...(debouncedQ && { search: debouncedQ }),
       ...(filters.status !== ANY && { status: filters.status as ProjectStatus }),
       sortBy: sortConfig.sortBy,
       sortOrder: sortConfig.sortOrder,
     }),
-    [page, debouncedQ, filters.status, sortConfig],
+    [page, limit, debouncedQ, filters.status, sortConfig],
   );
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
@@ -142,15 +148,22 @@ function ProjectsPage() {
 
   return (
     <>
-    <ListingPage
-      header={
-        <ListingPageHeader
+      <ListingPage>
+        <ListingCardHeader
           title="Projects"
-          description=""
-          breadcrumbs={[{ label: "Admin", to: "/admin" }, { label: "Projects" }]}
-          addAction={
+          description={meta ? `Total ${meta.total} projects` : "Loading projects…"}
+          value={q}
+          onChange={setQ}
+          placeholder="Search by project ID, name or customer…"
+          filterOpen={open}
+          onFilterOpenChange={setOpen}
+          activeFilterCount={activeCount}
+          onFilterApply={apply}
+          onFilterClear={clearFilters}
+          onExport={() => toast.info("Export coming soon.")}
+          primaryAction={
             isAdmin ? (
-              <Button size="sm" className="rounded-xl" asChild>
+              <Button size="sm" className="rounded-md" asChild>
                 <Link to="/admin/projects/new">
                   <Plus className="size-4" />
                   New project
@@ -158,51 +171,40 @@ function ProjectsPage() {
               </Button>
             ) : undefined
           }
+          filterContent={
+            <>
+              <ListingFilterField label="Status">
+                <ListingFilterSelect
+                  value={draft.status}
+                  onChange={(value) => patchDraft({ status: value })}
+                  options={PROJECT_STATUSES.map((value) => [value, value])}
+                  allLabel="All statuses"
+                />
+              </ListingFilterField>
+              <ListingFilterField label="Sort by">
+                <ListingFilterSelect
+                  value={draft.sort}
+                  onChange={(value) => patchDraft({ sort: value })}
+                  allValue="updated"
+                  allLabel="Recently updated"
+                  options={SORT_OPTIONS.filter((option) => option.value !== "updated").map((option) => [
+                    option.value,
+                    option.label,
+                  ])}
+                />
+              </ListingFilterField>
+            </>
+          }
         />
-      }
-    >
-      <ListingSearchRow
-        value={q}
-        onChange={setQ}
-        placeholder="Search by project ID, name or customer…"
-        filterOpen={open}
-        onFilterOpenChange={setOpen}
-        activeFilterCount={activeCount}
-        onFilterApply={apply}
-        onFilterClear={clearFilters}
-        filterContent={
-          <>
-            <ListingFilterField label="Status">
-              <ListingFilterSelect
-                value={draft.status}
-                onChange={(value) => patchDraft({ status: value })}
-                options={PROJECT_STATUSES.map((value) => [value, value])}
-                allLabel="All statuses"
-              />
-            </ListingFilterField>
-            <ListingFilterField label="Sort by">
-              <ListingFilterSelect
-                value={draft.sort}
-                onChange={(value) => patchDraft({ sort: value })}
-                allValue="updated"
-                allLabel="Recently updated"
-                options={SORT_OPTIONS.filter((option) => option.value !== "updated").map((option) => [option.value, option.label])}
-              />
-            </ListingFilterField>
-          </>
-        }
-      />
 
         {isLoading ? (
-          <TableSkeleton rows={6} cols={7} />
+          <TableSkeleton rows={6} cols={9} />
         ) : items.length === 0 ? (
           <EmptyState
             icon={FolderKanban}
             title="No projects found"
             description={
-              hasFilters
-                ? "Try adjusting your search or filters."
-                : "Create your first project to start tracking work."
+              hasFilters ? "Try adjusting your search or filters." : "Create your first project to start tracking work."
             }
             action={
               isAdmin ? (
@@ -223,135 +225,79 @@ function ProjectsPage() {
             }
           />
         ) : (
-          <>
-            <div className="hidden lg:block">
-              <Table className="min-w-5xl">
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    {["Project", "Customer", "Status", "Progress", "Hours", "Dates", "Label", "Actions"].map((heading) => (
-                      <TableHead key={heading} className={heading === "Actions" ? "text-right" : undefined}>
-                        {heading}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((project) => {
-                    const progressTone =
-                      project.status === "Open"
+          <Table className="min-w-6xl">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                {TABLE_COLUMNS.map((heading) => (
+                  <DataTableHead key={heading} className={heading === "Action" ? "text-right" : undefined} sortable={heading !== "Action"}>
+                    {heading}
+                  </DataTableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((project) => {
+                const progressTone =
+                  project.status === "Open"
+                    ? "primary"
+                    : project.status === "On Hold"
+                      ? "warning"
+                      : project.status === "Completed"
                         ? "success"
-                        : project.status === "On Hold"
-                          ? "warning"
-                          : project.status === "Completed"
-                            ? "violet"
-                            : "primary";
-                    return (
-                      <TableRow key={project._id}>
-                        <TableCell>
-                          <PrimaryCell
-                            id={project.projectId}
-                            title={project.name}
-                            to="/admin/projects/$projectId"
-                            params={{ projectId: project._id }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <EntityCell
-                            name={project.customerName ?? "—"}
-                            subtitle={project.customerName ? "Customer" : undefined}
-                            hue={42}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <ProjectStatusBadge status={project.status} />
-                        </TableCell>
-                        <TableCell>
-                          <ProgressCell value={project.progressPercentage} tone={progressTone} />
-                        </TableCell>
-                        <TableCell className="tabular font-medium text-foreground">{project.maxHours}h</TableCell>
-                        <TableCell>
-                          <DateStack
-                            start={formatDate(project.startDate)}
-                            end={project.endDate ? formatDate(project.endDate) : undefined}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <LabelPill label={project.label || "—"} />
-                        </TableCell>
-                        <TableCell>
-                          <DataTableActions>
-                            <DataTableIconButton label="View" asChild>
-                              <Link to="/admin/projects/$projectId" params={{ projectId: project._id }}>
-                                <Eye className="size-4" />
-                              </Link>
-                            </DataTableIconButton>
-                            <DataTableIconButton label="Edit" asChild>
-                              <Link to="/admin/projects/$projectId/edit" params={{ projectId: project._id }}>
-                                <Pencil className="size-4" />
-                              </Link>
-                            </DataTableIconButton>
-                            <DataTableIconButton label="More">
-                              <MoreHorizontal className="size-4" />
-                            </DataTableIconButton>
-                          </DataTableActions>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                        : "violet";
+                const preview = project.memberPreview ?? [];
+                const extra = Math.max(0, (project.memberCount ?? preview.length) - Math.min(2, preview.length));
 
-            <div className="divide-y lg:hidden">
-              {items.map((project) => (
-                <article key={project._id} className="space-y-3 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium">{project.name}</p>
-                      <p className="text-xs text-muted-foreground">{project.projectId}</p>
-                    </div>
-                    <ProjectStatusBadge status={project.status} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Customer</p>
-                      <p>{project.customerName ?? "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Max hours</p>
-                      <p className="tabular">{project.maxHours}h</p>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Progress</span>
-                      <span className="tabular">{project.progressPercentage}%</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${project.progressPercentage}%` }}
+                return (
+                  <TableRow key={project._id}>
+                    <TableCell>
+                      <IdLinkCell
+                        id={project.projectId}
+                        to="/admin/projects/$projectId"
+                        params={{ projectId: project._id }}
                       />
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to="/admin/projects/$projectId" params={{ projectId: project._id }}>
-                        <Eye className="size-4" />
-                        View
-                      </Link>
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to="/admin/projects/$projectId/edit" params={{ projectId: project._id }}>
-                        <Pencil className="size-4" />
-                        Edit
-                      </Link>
-                    </Button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </>
+                    </TableCell>
+                    <TableCell className="font-medium">{project.name}</TableCell>
+                    <TableCell>{project.customerName ?? "—"}</TableCell>
+                    <TableCell>
+                      <ProjectStatusBadge status={project.status} />
+                    </TableCell>
+                    <TableCell>
+                      <TeamAvatarStack
+                        members={preview.map((member) => ({ name: member.name }))}
+                        extra={extra}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <DateCell value={formatDate(project.startDate)} />
+                    </TableCell>
+                    <TableCell>
+                      <DateCell value={project.endDate ? formatDate(project.endDate) : "—"} />
+                    </TableCell>
+                    <TableCell>
+                      <ProgressCell value={project.progressPercentage} tone={progressTone} />
+                    </TableCell>
+                    <TableCell>
+                      <DataTableActions>
+                        <DataTableRowMenu>
+                          <DropdownMenuItem asChild>
+                            <Link to="/admin/projects/$projectId" params={{ projectId: project._id }}>
+                              <Eye className="size-4" /> View
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link to="/admin/projects/$projectId/edit" params={{ projectId: project._id }}>
+                              <Pencil className="size-4" /> Edit
+                            </Link>
+                          </DropdownMenuItem>
+                        </DataTableRowMenu>
+                      </DataTableActions>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
 
         {!isLoading && items.length > 0 && meta && (
@@ -363,9 +309,10 @@ function ProjectsPage() {
             entityLabel="projects"
             isFetching={isFetching && !isLoading}
             onPageChange={setPage}
+            onLimitChange={setLimit}
           />
         )}
-    </ListingPage>
+      </ListingPage>
 
       {isError && (
         <div className="flex justify-center">

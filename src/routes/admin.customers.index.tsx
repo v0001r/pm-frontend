@@ -2,31 +2,32 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Eye, MoreHorizontal, Pencil, Plus, Users } from "lucide-react";
+import { Eye, Pencil, Plus, Users } from "lucide-react";
 import { RequireRole } from "@/components/guard";
 import {
   DataTableActions,
-  DataTableIconButton,
+  DataTableHead,
   DataTablePagination,
+  DataTableRowMenu,
+  DateCell,
   EntityCell,
-  PrimaryCell,
+  IdLinkCell,
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/data-table";
 import {
   ListingFilterField,
   ListingFilterSelect,
+  ListingCardHeader,
   ListingPage,
-  ListingPageHeader,
-  ListingSearchRow,
   useListingFilters,
 } from "@/components/listing-page";
 import { EmptyState, StatusBadge, TableSkeleton } from "@/components/primitives";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { getApiErrorMessage } from "@/lib/api";
 import { fetchCustomers } from "@/lib/customers";
 import { formatDate } from "@/lib/store";
@@ -44,28 +45,30 @@ export const Route = createFileRoute("/admin/customers/")({
 
 const PAGE_SIZE = 10;
 const ANY = "all";
-
 const FILTER_DEFAULTS = { status: ANY, invitationStatus: ANY };
+
+const TABLE_COLUMNS = ["Customer ID", "Company", "Primary contact", "Status", "Invitation", "Portal", "Created", "Action"] as const;
 
 function CustomersPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const { applied: filters, draft, patchDraft, apply, clear, open, setOpen, activeCount } = useListingFilters(FILTER_DEFAULTS);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(PAGE_SIZE);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => setPage(1), [debouncedSearch, filters.status, filters.invitationStatus]);
+  useEffect(() => setPage(1), [debouncedSearch, filters.status, filters.invitationStatus, limit]);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["customers", { page, search: debouncedSearch, filters }],
+    queryKey: ["customers", { page, limit, search: debouncedSearch, filters }],
     queryFn: () =>
       fetchCustomers({
         page,
-        limit: PAGE_SIZE,
+        limit,
         ...(debouncedSearch && { search: debouncedSearch }),
         ...(filters.status !== ANY && { status: filters.status as AccountStatus }),
         ...(filters.invitationStatus !== ANY && { invitationStatus: filters.invitationStatus as InvitationStatus }),
@@ -90,31 +93,26 @@ function CustomersPage() {
   };
 
   return (
-    <ListingPage
-      header={
-        <ListingPageHeader
-          title="Customers"
-          description="Manage organizations, contacts and portal access."
-          breadcrumbs={[{ label: "Admin", to: "/admin" }, { label: "Customers" }]}
-          addAction={
-            <Button size="sm" className="rounded-xl" asChild>
-              <Link to="/admin/customers/new">
-                <Plus className="size-4" /> New customer
-              </Link>
-            </Button>
-          }
-        />
-      }
-    >
-      <ListingSearchRow
+    <ListingPage>
+      <ListingCardHeader
+        title="Customers"
+        description={meta ? `Total ${meta.total} customers` : "Loading customers…"}
         value={search}
         onChange={setSearch}
-        placeholder="Search customers…"
+        placeholder="Search by customer ID, company or contact…"
         filterOpen={open}
         onFilterOpenChange={setOpen}
         activeFilterCount={activeCount}
         onFilterApply={apply}
         onFilterClear={clearFilters}
+        onExport={() => toast.info("Export coming soon.")}
+        primaryAction={
+          <Button size="sm" className="rounded-md" asChild>
+            <Link to="/admin/customers/new">
+              <Plus className="size-4" /> New customer
+            </Link>
+          </Button>
+        }
         filterContent={
           <>
             <ListingFilterField label="Status">
@@ -137,79 +135,86 @@ function CustomersPage() {
         }
       />
 
-        {isLoading ? (
-          <TableSkeleton rows={6} cols={7} />
-        ) : items.length === 0 ? (
-          <EmptyState icon={Users} title="No customers found" description="Create your first customer organization." />
-        ) : (
-          <>
-            <Table className="min-w-3xl">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  {["Customer", "Primary contact", "Status", "Invitation", "Portal", "Created", "Actions"].map((h) => (
-                    <TableHead key={h} className={h === "Actions" ? "text-right" : undefined}>{h}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((customer) => (
-                  <TableRow key={customer._id}>
-                    <TableCell>
-                      <PrimaryCell
-                        id={customer.customerId}
-                        title={customer.companyName}
-                        to="/admin/customers/$customerId"
-                        params={{ customerId: customer._id }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <EntityCell
-                        name={customer.primaryContactName ?? "—"}
-                        subtitle={customer.primaryContactEmail}
-                        hue={155}
-                      />
-                    </TableCell>
-                    <TableCell><StatusBadge status={customer.status} /></TableCell>
-                    <TableCell className="text-muted-foreground">{customer.invitationStatus ?? "—"}</TableCell>
-                    <TableCell>
-                      <span className={customer.portalEnabled ? "text-emerald-600 font-medium" : "text-muted-foreground"}>
-                        {customer.portalEnabled ? "Enabled" : "Disabled"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(customer.createdAt)}</TableCell>
-                    <TableCell>
-                      <DataTableActions>
-                        <DataTableIconButton label="View" asChild>
-                          <Link to="/admin/customers/$customerId" params={{ customerId: customer._id }}>
-                            <Eye className="size-4" />
-                          </Link>
-                        </DataTableIconButton>
-                        <DataTableIconButton label="Edit" asChild>
-                          <Link to="/admin/customers/$customerId/edit" params={{ customerId: customer._id }}>
-                            <Pencil className="size-4" />
-                          </Link>
-                        </DataTableIconButton>
-                        <DataTableIconButton label="More">
-                          <MoreHorizontal className="size-4" />
-                        </DataTableIconButton>
-                      </DataTableActions>
-                    </TableCell>
-                  </TableRow>
+      {isLoading ? (
+        <TableSkeleton rows={6} cols={8} />
+      ) : items.length === 0 ? (
+        <EmptyState icon={Users} title="No customers found" description="Create your first customer organization." />
+      ) : (
+        <>
+          <Table className="min-w-5xl">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                {TABLE_COLUMNS.map((heading) => (
+                  <DataTableHead key={heading} className={heading === "Action" ? "text-right" : undefined} sortable={heading !== "Action"}>
+                    {heading}
+                  </DataTableHead>
                 ))}
-              </TableBody>
-            </Table>
-            {meta && (
-              <DataTablePagination
-                page={meta.page}
-                limit={meta.limit}
-                total={meta.total}
-                totalPages={meta.totalPages}
-                entityLabel="customers"
-                onPageChange={setPage}
-              />
-            )}
-          </>
-        )}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((customer) => (
+                <TableRow key={customer._id}>
+                  <TableCell>
+                    <IdLinkCell
+                      id={customer.customerId}
+                      to="/admin/customers/$customerId"
+                      params={{ customerId: customer._id }}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{customer.companyName}</TableCell>
+                  <TableCell>
+                    <EntityCell
+                      name={customer.primaryContactName ?? "—"}
+                      subtitle={customer.primaryContactEmail}
+                      hue={155}
+                      showAvatar
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={customer.status} />
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{customer.invitationStatus ?? "—"}</TableCell>
+                  <TableCell>
+                    <span className={customer.portalEnabled ? "font-medium text-emerald-600" : "text-muted-foreground"}>
+                      {customer.portalEnabled ? "Enabled" : "Disabled"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <DateCell value={formatDate(customer.createdAt)} />
+                  </TableCell>
+                  <TableCell>
+                    <DataTableActions>
+                      <DataTableRowMenu>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/customers/$customerId" params={{ customerId: customer._id }}>
+                            <Eye className="size-4" /> View
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/customers/$customerId/edit" params={{ customerId: customer._id }}>
+                            <Pencil className="size-4" /> Edit
+                          </Link>
+                        </DropdownMenuItem>
+                      </DataTableRowMenu>
+                    </DataTableActions>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {meta && (
+            <DataTablePagination
+              page={meta.page}
+              limit={meta.limit}
+              total={meta.total}
+              totalPages={meta.totalPages}
+              entityLabel="customers"
+              onPageChange={setPage}
+              onLimitChange={setLimit}
+            />
+          )}
+        </>
+      )}
     </ListingPage>
   );
 }

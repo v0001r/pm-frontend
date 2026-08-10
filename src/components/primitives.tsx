@@ -59,17 +59,18 @@ export function SlaBadge({ state }: { state: string }) {
 }
 
 const projectStatusStyles: Record<ProjectStatus, string> = {
-  Open: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  Open: "bg-sky-50 text-sky-700 border-sky-200",
   "On Hold": "bg-amber-50 text-amber-700 border-amber-200",
-  Completed: "bg-violet-50 text-violet-700 border-violet-200",
+  Completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
   Cancelled: "bg-slate-50 text-slate-600 border-slate-200",
 };
 
 export function ProjectStatusBadge({ status, className }: { status: ProjectStatus; className?: string }) {
+  const label = status === "Open" ? "In Progress" : status;
   return (
     <span className={cn(badgeBase, projectStatusStyles[status], className)}>
       <span className="size-1.5 rounded-full bg-current" />
-      {status}
+      {label}
     </span>
   );
 }
@@ -251,14 +252,14 @@ export function Shimmer({ className }: { className?: string }) {
 
 export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: number }) {
   return (
-    <div className="divide-y divide-border/50">
-      <div className="flex gap-4 bg-muted/40 px-5 py-3">
+    <div className="divide-y divide-border/70 bg-card">
+      <div className="flex gap-4 border-b border-border px-4 py-3.5">
         {Array.from({ length: cols }, (_, c) => (
-          <Shimmer key={c} className={cn("h-3", c === 0 ? "w-24" : "w-16")} />
+          <Shimmer key={c} className={cn("h-3.5", c === 0 ? "w-24" : "w-16")} />
         ))}
       </div>
       {Array.from({ length: rows }, (_, r) => (
-        <div key={r} className="flex items-center gap-4 px-5 py-5">
+        <div key={r} className="flex items-center gap-4 px-4 py-5">
           {Array.from({ length: cols }, (_, c) => (
             <Shimmer key={c} className={cn("h-4", c === 0 ? "w-40" : "w-24")} />
           ))}
