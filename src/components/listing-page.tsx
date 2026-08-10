@@ -1,0 +1,222 @@
+import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
+import { ChevronRight, Search, SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SectionCard } from "@/components/primitives";
+import { cn } from "@/lib/utils";
+
+export type BreadcrumbItem = { label: string; to?: string };
+
+export function ListingBreadcrumbs({ items }: { items: BreadcrumbItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <nav aria-label="Breadcrumb" className="mb-1 flex flex-wrap items-center gap-1.5 text-xs font-medium text-muted-foreground">
+      {items.map((item, index) => (
+        <Fragment key={`${item.label}-${index}`}>
+          {index > 0 ? <ChevronRight className="size-3.5 shrink-0 opacity-40" aria-hidden /> : null}
+          {item.to ? (
+            <Link to={item.to} className="transition-colors hover:text-foreground">
+              {item.label}
+            </Link>
+          ) : (
+            <span className="text-foreground/80">{item.label}</span>
+          )}
+        </Fragment>
+      ))}
+    </nav>
+  );
+}
+
+export function ListingPageHeader({
+  title,
+  description,
+  breadcrumbs,
+  exportAction,
+  addAction,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  breadcrumbs?: BreadcrumbItem[];
+  exportAction?: ReactNode;
+  addAction?: ReactNode;
+  actions?: ReactNode;
+}) {
+  const hasActions = exportAction || addAction || actions;
+  return (
+    <header className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        {breadcrumbs ? <ListingBreadcrumbs items={breadcrumbs} /> : null}
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+        {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+      </div>
+      {hasActions ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {exportAction}
+          {addAction}
+          {actions}
+        </div>
+      ) : null}
+    </header>
+  );
+}
+
+export function ListingPage({ header, children, className }: { header: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <div className={cn("space-y-4", className)}>
+      {header}
+      <SectionCard className="overflow-hidden">{children}</SectionCard>
+    </div>
+  );
+}
+
+export function ListingSearchRow({
+  value,
+  onChange,
+  placeholder = "Search…",
+  filterOpen,
+  onFilterOpenChange,
+  activeFilterCount = 0,
+  onFilterApply,
+  onFilterClear,
+  filterContent,
+  filterTitle = "Filters",
+  showFilters = true,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  filterOpen: boolean;
+  onFilterOpenChange: (open: boolean) => void;
+  activeFilterCount?: number;
+  onFilterApply: () => void;
+  onFilterClear: () => void;
+  filterContent?: ReactNode;
+  filterTitle?: string;
+  showFilters?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 border-b border-border/60 px-4 py-3 sm:px-5">
+      <div className="relative min-w-0 flex-1">
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          className="h-10 rounded-xl border-border/60 bg-surface pl-10"
+        />
+      </div>
+      {showFilters && filterContent ? (
+        <Popover open={filterOpen} onOpenChange={onFilterOpenChange}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="relative size-10 shrink-0 rounded-xl"
+            aria-label="Open filters"
+          >
+            <SlidersHorizontal className="size-4" />
+            {activeFilterCount > 0 ? (
+              <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                {activeFilterCount}
+              </span>
+            ) : null}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[min(100vw-2rem,22rem)] rounded-xl p-0">
+          <div className="border-b px-4 py-3">
+            <p className="text-sm font-semibold text-foreground">{filterTitle}</p>
+          </div>
+          <div className="max-h-[min(70vh,24rem)] space-y-4 overflow-y-auto p-4">{filterContent}</div>
+          <div className="flex gap-2 border-t p-3">
+            <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={onFilterClear}>
+              Clear
+            </Button>
+            <Button type="button" className="flex-1 rounded-xl" onClick={onFilterApply}>
+              Apply
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+      ) : null}
+    </div>
+  );
+}
+
+export function ListingFilterField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-1.5">
+      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+export function ListingFilterSelect({
+  value,
+  onChange,
+  placeholder,
+  options,
+  allLabel = "All",
+  allValue = "all",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  options: [string, string][];
+  allLabel?: string;
+  allValue?: string;
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="h-10 w-full rounded-xl">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={allValue}>{allLabel}</SelectItem>
+        {options.map(([optionValue, label]) => (
+          <SelectItem key={optionValue} value={optionValue}>
+            {label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export function useListingFilters<T extends Record<string, string>>(defaults: T, initial?: Partial<T>) {
+  const initialApplied = { ...defaults, ...initial };
+  const [applied, setApplied] = useState(initialApplied);
+  const [draft, setDraft] = useState(initialApplied);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) setDraft(applied);
+  }, [open, applied]);
+
+  const apply = () => {
+    setApplied(draft);
+    setOpen(false);
+  };
+
+  const clear = () => {
+    setDraft(defaults);
+    setApplied(defaults);
+    setOpen(false);
+  };
+
+  const activeCount = Object.keys(defaults).filter((key) => applied[key] !== defaults[key]).length;
+
+  const patchDraft = (patch: Partial<T>) => setDraft((current) => ({ ...current, ...patch }));
+
+  return { applied, setApplied, draft, setDraft, patchDraft, apply, clear, open, setOpen, activeCount };
+}
+
+export function countActiveFilters(values: Record<string, string>, defaults: Record<string, string>) {
+  return Object.keys(defaults).filter((key) => values[key] !== defaults[key]).length;
+}
