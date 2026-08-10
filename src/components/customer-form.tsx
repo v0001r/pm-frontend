@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { FormActions } from "@/components/form-actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -8,11 +8,18 @@ import type { CreateCustomerPayload, Customer, UpdateCustomerPayload } from "@/l
 interface CustomerFormProps {
   initial?: Partial<Customer>;
   onSubmit: (payload: CreateCustomerPayload | UpdateCustomerPayload) => Promise<void>;
+  onCancel: () => void;
   submitLabel?: string;
   isEdit?: boolean;
 }
 
-export function CustomerForm({ initial, onSubmit, submitLabel = "Save customer", isEdit = false }: CustomerFormProps) {
+export function CustomerForm({
+  initial,
+  onSubmit,
+  onCancel,
+  submitLabel = "Save customer",
+  isEdit = false,
+}: CustomerFormProps) {
   const [companyName, setCompanyName] = useState(initial?.companyName ?? initial?.name ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
@@ -141,9 +148,12 @@ export function CustomerForm({ initial, onSubmit, submitLabel = "Save customer",
         </div>
       )}
 
-      <Button type="submit" disabled={submitting}>
-        {submitting ? "Saving…" : submitLabel}
-      </Button>
+      <FormActions
+        submitLabel={submitLabel}
+        submitting={submitting}
+        submittingLabel="Saving…"
+        onCancel={onCancel}
+      />
     </form>
   );
 }

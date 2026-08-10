@@ -39,6 +39,7 @@ function EditUserPage() {
           <InternalUserForm
             mode="edit"
             initial={userQuery.data}
+            onCancel={() => navigate({ to: "/admin/users/$userId", params: { userId } })}
             onSubmit={async (payload) => {
               try {
                 await updateInternalUser(userId, payload as UpdateInternalUserPayload);

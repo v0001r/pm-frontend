@@ -69,6 +69,7 @@ const adminNav: NavItem[] = [
   { label: "Customers", to: "/admin/customers", icon: Users },
   { label: "Users", to: "/admin/users", icon: UserCog },
   { label: "Reports", to: "/admin/reports", icon: BarChart3 },
+  { label: "Settings", to: "/admin/settings", icon: Settings },
 ];
 
 const agentNav: NavItem[] = [
@@ -88,12 +89,11 @@ const clientNav: NavItem[] = [
 
 function navItemClasses(active: boolean, collapsed: boolean) {
   return cn(
-    "relative flex items-center gap-3 rounded-lg text-[13px] font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:ring-sidebar-ring/40 focus-visible:outline-none",
+    "relative flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:ring-sidebar-ring/40 focus-visible:outline-none",
     collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
     active
-      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+      ? "bg-primary text-primary-foreground shadow-sm"
       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-active-foreground",
-    active && !collapsed && "before:absolute before:left-0 before:top-1/2 before:h-5 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-primary",
   );
 }
 
@@ -126,6 +126,7 @@ function NavList({
           >
             <NavIcon icon={item.icon} />
             {!collapsed && <span className="truncate">{item.label}</span>}
+            {!collapsed && active ? <ChevronRight className="ml-auto size-4 shrink-0 opacity-90" /> : null}
           </Link>
         );
         if (!collapsed) return link;
@@ -142,14 +143,14 @@ function NavList({
 
 function Brand({ collapsed = false }: { collapsed?: boolean }) {
   return (
-    <div className={cn("flex h-16 items-center gap-3 border-b border-sidebar-border/80", collapsed ? "justify-center px-2" : "px-5")}>
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-[0_4px_12px_-2px_rgb(79_70_229/0.45)]">
-        <LifeBuoy className="size-[18px]" strokeWidth={2} />
+    <div className={cn("flex h-14 items-center gap-2.5 border-b border-sidebar-border", collapsed ? "justify-center px-2" : "px-4")}>
+      <span className="grid size-8 shrink-0 place-items-center rounded-md bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
+        <LifeBuoy className="size-4" strokeWidth={2} />
       </span>
       {!collapsed && (
         <div className="min-w-0">
-          <span className="block text-[15px] font-bold tracking-tight text-sidebar-active-foreground">Helpdesk</span>
-          <span className="block text-[11px] font-medium text-sidebar-section-foreground">Enterprise</span>
+          <span className="block truncate text-sm font-bold tracking-tight text-sidebar-active-foreground">Helpdesk</span>
+          <span className="block truncate text-[10px] font-medium text-sidebar-section-foreground">Enterprise</span>
         </div>
       )}
     </div>
@@ -376,7 +377,10 @@ function ProfileMenu() {
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-2.5 rounded-xl border border-transparent px-2 py-1.5 transition-all hover:border-border/60 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none">
             <UserAvatar name={name} hue={user.avatarHue} size={32} />
-            <span className="hidden text-sm font-medium sm:block">{name}</span>
+            <span className="hidden text-left sm:block">
+              <span className="block text-sm font-medium leading-tight">{name}</span>
+              <span className="block text-xs text-muted-foreground">{user.role}</span>
+            </span>
             <ChevronDown className="size-3.5 text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
@@ -444,25 +448,25 @@ export function AppShell({ children }: { children: ReactNode }) {
         <aside
           className={cn(
             "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col border-r border-sidebar-border/80 bg-sidebar shadow-[4px_0_24px_-12px_rgb(15_23_42/0.08)] transition-[width] duration-300 ease-out lg:flex",
-            collapsed ? "w-[72px]" : "w-[260px]",
+            collapsed ? "w-[68px]" : "w-[210px]",
           )}
         >
           <Brand collapsed={collapsed} />
           <div className="flex flex-1 flex-col overflow-y-auto py-2">
             <NavList items={items} collapsed={collapsed} />
           </div>
-          <div className="border-t border-sidebar-border/80 p-3">
+          <div className="border-t border-sidebar-border p-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setCollapsed((c) => !c)}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               className={cn(
-                "h-9 w-full justify-start gap-2 rounded-lg px-3 text-[13px] font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-active-foreground",
+                "h-8 w-full justify-start gap-2 rounded-md px-2.5 text-xs font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-active-foreground",
                 collapsed && "justify-center px-0",
               )}
             >
-              {collapsed ? <PanelLeftOpen className="size-[18px] stroke-[1.75]" /> : <PanelLeftClose className="size-[18px] stroke-[1.75]" />}
+              {collapsed ? <PanelLeftOpen className="size-4 stroke-[1.75]" /> : <PanelLeftClose className="size-4 stroke-[1.75]" />}
               {!collapsed && <span>Collapse</span>}
             </Button>
           </div>

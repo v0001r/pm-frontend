@@ -1,0 +1,1 @@
+import{g as e}from"./button-DUef3aWA.js";async function t(){let{data:t}=await e.get(`/users`),n=t.data;return Array.isArray(n)?n:n.items}async function n(){return(await t()).filter(e=>e.role===`Client`)}async function r(){return(await t()).filter(e=>e.role===`Admin`||e.role===`Staff`)}export{r as n,n as t};

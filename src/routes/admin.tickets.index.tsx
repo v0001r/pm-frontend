@@ -51,6 +51,7 @@ interface TicketSearch {
   sla?: string;
   client?: string;
   agent?: string;
+  projectId?: string;
 }
 
 export const Route = createFileRoute("/admin/tickets/")({
@@ -61,6 +62,7 @@ export const Route = createFileRoute("/admin/tickets/")({
     sla: typeof search["sla"] === "string" ? search["sla"] : undefined,
     client: typeof search["client"] === "string" ? search["client"] : undefined,
     agent: typeof search["agent"] === "string" ? search["agent"] : undefined,
+    projectId: typeof search["projectId"] === "string" ? search["projectId"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -129,12 +131,13 @@ function TicketsPage() {
   const employeesQuery = useQuery({ queryKey: ["employees"], queryFn: fetchEmployees });
 
   const ticketsQuery = useQuery({
-    queryKey: ["admin-tickets", { page, debouncedQ, filters, sortParams }],
+    queryKey: ["admin-tickets", { page, debouncedQ, filters, sortParams, projectId: initial.projectId }],
     queryFn: () =>
       fetchTicketsPage({
         page,
         limit: PAGE_SIZE,
         ...(debouncedQ && { search: debouncedQ }),
+        ...(initial.projectId && { projectId: initial.projectId }),
         ...(filters.status !== ANY && { status: filters.status as TicketStatus }),
         ...(filters.priority !== ANY && { priority: filters.priority as Priority }),
         ...(filters.category !== ANY && { categoryId: filters.category }),

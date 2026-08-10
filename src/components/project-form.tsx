@@ -279,12 +279,12 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" size="sm" disabled={mutation.isPending}>
-          {mutation.isPending ? "Saving..." : mode === "create" ? "Create project" : "Save changes"}
-        </Button>
+      <div className="flex justify-end gap-2">
         <Button type="button" size="sm" variant="outline" onClick={onCancel} disabled={mutation.isPending}>
           Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={mutation.isPending}>
+          {mutation.isPending ? "Saving..." : mode === "create" ? "Create project" : "Save changes"}
         </Button>
       </div>
     </form>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bell, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 import { RequireRole } from "@/components/guard";
 import { PageHeader, SectionCard, UserAvatar } from "@/components/primitives";
@@ -8,7 +9,7 @@ import { PasswordField, PasswordStrength } from "@/components/password";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsPanelTrigger } from "@/components/ui/tabs";
 import { getApiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { fetchOwnProfile, updateOwnProfile } from "@/lib/internal-users";
@@ -66,9 +67,24 @@ function ProfilePage() {
       <PageHeader title="Profile & settings" description="Your account details and preferences." />
       <Tabs defaultValue="details">
         <TabsList>
-          <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsPanelTrigger
+            value="details"
+            icon={<User />}
+            title="Details"
+            description="Personal information"
+          />
+          <TabsPanelTrigger
+            value="security"
+            icon={<Lock />}
+            title="Security"
+            description="Password and login"
+          />
+          <TabsPanelTrigger
+            value="notifications"
+            icon={<Bell />}
+            title="Notifications"
+            description="Email preferences"
+          />
         </TabsList>
 
         <TabsContent value="details" className="mt-4">
@@ -122,7 +138,7 @@ function ProfilePage() {
                 />
               </div>
               {user.role !== "Client" && (
-                <div className="sm:col-span-2">
+                <div className="flex justify-end gap-2 sm:col-span-2">
                   <Button size="sm" type="submit" disabled={profileMutation.isPending}>
                     {profileMutation.isPending ? "Saving..." : "Save changes"}
                   </Button>
@@ -166,9 +182,11 @@ function ProfilePage() {
                 <PasswordStrength value={password} />
               </div>
               <PasswordField id="confirm" label="Confirm new password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
-              <Button size="sm" type="submit" className="justify-self-start" disabled={changing}>
-                {changing ? "Updating…" : "Update password"}
-              </Button>
+              <div className="flex justify-end">
+                <Button size="sm" type="submit" disabled={changing}>
+                  {changing ? "Updating…" : "Update password"}
+                </Button>
+              </div>
             </form>
           </SectionCard>
         </TabsContent>

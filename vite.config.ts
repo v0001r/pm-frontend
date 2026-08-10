@@ -6,11 +6,13 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
+// Vercel → nitro "vercel" preset (.vercel/output)
+// Render/other Node hosts → "node-server" preset (.output/server)
+const nitroPreset = process.env.VERCEL ? "vercel" : "node-server";
+
 export default defineConfig({
-  // Render (and most Node hosts) need the node-server preset — the Lovable default
-  // targets Cloudflare and the Nitro bundle step is very memory-heavy without tuning.
   nitro: {
-    preset: "node-server",
+    preset: nitroPreset,
   },
   vite: {
     build: {

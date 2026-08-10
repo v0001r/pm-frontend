@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
+import { Briefcase, Shield, User } from "lucide-react";
+import { FormActions } from "@/components/form-actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsPanelTrigger } from "@/components/ui/tabs";
 import { fetchDepartments, fetchDesignations, fetchTeams } from "@/lib/org";
 import { fetchEmployees } from "@/lib/users";
 import type { CreateInternalUserPayload, InternalUser, Role, UpdateInternalUserPayload } from "@/lib/types";
@@ -13,6 +14,7 @@ interface InternalUserFormProps {
   initial?: Partial<InternalUser>;
   mode: "create" | "edit";
   onSubmit: (payload: CreateInternalUserPayload | UpdateInternalUserPayload) => Promise<void>;
+  onCancel: () => void;
   submitLabel?: string;
 }
 
@@ -20,6 +22,7 @@ export function InternalUserForm({
   initial,
   mode,
   onSubmit,
+  onCancel,
   submitLabel = mode === "create" ? "Create user" : "Save changes",
 }: InternalUserFormProps) {
   const [tab, setTab] = useState("general");
@@ -113,9 +116,24 @@ export function InternalUserForm({
     >
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="job">Job</TabsTrigger>
-          <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsPanelTrigger
+            value="general"
+            icon={<User />}
+            title="General"
+            description="Name, email and contact"
+          />
+          <TabsPanelTrigger
+            value="job"
+            icon={<Briefcase />}
+            title="Job"
+            description="Department and reporting"
+          />
+          <TabsPanelTrigger
+            value="account"
+            icon={<Shield />}
+            title="Account"
+            description="Role, status and access"
+          />
         </TabsList>
 
         <TabsContent value="general" className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -248,9 +266,7 @@ export function InternalUserForm({
         </TabsContent>
       </Tabs>
 
-      <Button type="submit" disabled={submitting}>
-        {submitting ? "Saving..." : submitLabel}
-      </Button>
+      <FormActions submitLabel={submitLabel} submitting={submitting} onCancel={onCancel} />
     </form>
   );
 }

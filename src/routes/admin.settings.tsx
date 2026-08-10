@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Bell, Clock3, Settings, Ticket, Users } from "lucide-react";
 import { toast } from "sonner";
 import { RequireRole } from "@/components/guard";
 import { PageHeader, SectionCard } from "@/components/primitives";
@@ -16,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsPanelTrigger } from "@/components/ui/tabs";
 import { PRIORITIES, SLA_MATRIX, STATUSES } from "@/lib/types";
 
 export const Route = createFileRoute("/admin/settings")({
@@ -39,14 +40,39 @@ export const Route = createFileRoute("/admin/settings")({
 function SettingsPage() {
   return (
     <>
-      <PageHeader title="Settings" description="Workspace configuration for the support desk." />
+      <PageHeader title="Settings" description="Manage your account preferences, settings and workspace." />
       <Tabs defaultValue="general">
         <TabsList>
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="tickets">Tickets</TabsTrigger>
-          <TabsTrigger value="sla">SLA</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="roles">Users & roles</TabsTrigger>
+          <TabsPanelTrigger
+            value="general"
+            icon={<Settings />}
+            title="General"
+            description="Company details and branding"
+          />
+          <TabsPanelTrigger
+            value="tickets"
+            icon={<Ticket />}
+            title="Tickets"
+            description="Defaults and categories"
+          />
+          <TabsPanelTrigger
+            value="sla"
+            icon={<Clock3 />}
+            title="SLA"
+            description="Response and resolution targets"
+          />
+          <TabsPanelTrigger
+            value="notifications"
+            icon={<Bell />}
+            title="Notifications"
+            description="Email and in-app alerts"
+          />
+          <TabsPanelTrigger
+            value="roles"
+            icon={<Users />}
+            title="Users & roles"
+            description="Roles and permissions"
+          />
         </TabsList>
 
         <TabsContent value="general" className="mt-4">
@@ -69,7 +95,7 @@ function SettingsPage() {
                   <Input defaultValue={value} />
                 </div>
               ))}
-              <div className="sm:col-span-2">
+              <div className="flex justify-end sm:col-span-2">
                 <Button type="submit" size="sm">Save changes</Button>
               </div>
             </form>

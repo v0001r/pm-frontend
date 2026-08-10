@@ -342,7 +342,7 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
               <div className="border-t p-4">
                 {mode === "admin" && (
                   <Tabs value={internal ? "note" : "reply"} onValueChange={(v) => setInternal(v === "note")}>
-                    <TabsList className="mb-3">
+                    <TabsList variant="compact" className="mb-3">
                       <TabsTrigger value="reply">
                         <Send className="size-3.5" /> Reply to client
                       </TabsTrigger>

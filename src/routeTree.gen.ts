@@ -46,9 +46,12 @@ import { Route as PortalProjectsProjectIdRouteImport } from './routes/portal.pro
 import { Route as PortalTicketsIndexRouteImport } from './routes/portal.tickets.index'
 import { Route as PortalTicketsTicketIdRouteImport } from './routes/portal.tickets.$ticketId'
 import { Route as PortalTicketsNewRouteImport } from './routes/portal.tickets.new'
+import { Route as AdminCustomersCustomerIdIndexRouteImport } from './routes/admin.customers.$customerId.index'
 import { Route as AdminCustomersCustomerIdEditRouteImport } from './routes/admin.customers.$customerId.edit'
+import { Route as AdminProjectsProjectIdIndexRouteImport } from './routes/admin.projects.$projectId.index'
 import { Route as AdminProjectsProjectIdEditRouteImport } from './routes/admin.projects.$projectId.edit'
 import { Route as AdminProjectsProjectIdMembersRouteImport } from './routes/admin.projects.$projectId.members'
+import { Route as AdminUsersUserIdIndexRouteImport } from './routes/admin.users.$userId.index'
 import { Route as AdminUsersUserIdEditRouteImport } from './routes/admin.users.$userId.edit'
 
 const IndexRoute = IndexRouteImport.update({
@@ -237,11 +240,23 @@ const PortalTicketsNewRoute = PortalTicketsNewRouteImport.update({
   path: '/portal/tickets/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCustomersCustomerIdIndexRoute =
+  AdminCustomersCustomerIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AdminCustomersCustomerIdRoute,
+  } as any)
 const AdminCustomersCustomerIdEditRoute =
   AdminCustomersCustomerIdEditRouteImport.update({
     id: '/edit',
     path: '/edit',
     getParentRoute: () => AdminCustomersCustomerIdRoute,
+  } as any)
+const AdminProjectsProjectIdIndexRoute =
+  AdminProjectsProjectIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AdminProjectsProjectIdRoute,
   } as any)
 const AdminProjectsProjectIdEditRoute =
   AdminProjectsProjectIdEditRouteImport.update({
@@ -255,6 +270,11 @@ const AdminProjectsProjectIdMembersRoute =
     path: '/members',
     getParentRoute: () => AdminProjectsProjectIdRoute,
   } as any)
+const AdminUsersUserIdIndexRoute = AdminUsersUserIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminUsersUserIdRoute,
+} as any)
 const AdminUsersUserIdEditRoute = AdminUsersUserIdEditRouteImport.update({
   id: '/edit',
   path: '/edit',
@@ -303,6 +323,9 @@ export interface FileRoutesByFullPath {
   '/admin/projects/$projectId/edit': typeof AdminProjectsProjectIdEditRoute
   '/admin/projects/$projectId/members': typeof AdminProjectsProjectIdMembersRoute
   '/admin/users/$userId/edit': typeof AdminUsersUserIdEditRoute
+  '/admin/customers/$customerId/': typeof AdminCustomersCustomerIdIndexRoute
+  '/admin/projects/$projectId/': typeof AdminProjectsProjectIdIndexRoute
+  '/admin/users/$userId/': typeof AdminUsersUserIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -325,13 +348,10 @@ export interface FileRoutesByTo {
   '/staff/dashboard': typeof StaffDashboardRoute
   '/admin': typeof AdminIndexRoute
   '/portal': typeof PortalIndexRoute
-  '/admin/customers/$customerId': typeof AdminCustomersCustomerIdRouteWithChildren
   '/admin/customers/new': typeof AdminCustomersNewRoute
-  '/admin/projects/$projectId': typeof AdminProjectsProjectIdRouteWithChildren
   '/admin/projects/new': typeof AdminProjectsNewRoute
   '/admin/tickets/$ticketId': typeof AdminTicketsTicketIdRoute
   '/admin/tickets/new': typeof AdminTicketsNewRoute
-  '/admin/users/$userId': typeof AdminUsersUserIdRouteWithChildren
   '/admin/users/new': typeof AdminUsersNewRoute
   '/portal/projects/$projectId': typeof PortalProjectsProjectIdRoute
   '/portal/tickets/$ticketId': typeof PortalTicketsTicketIdRoute
@@ -346,6 +366,9 @@ export interface FileRoutesByTo {
   '/admin/projects/$projectId/edit': typeof AdminProjectsProjectIdEditRoute
   '/admin/projects/$projectId/members': typeof AdminProjectsProjectIdMembersRoute
   '/admin/users/$userId/edit': typeof AdminUsersUserIdEditRoute
+  '/admin/customers/$customerId': typeof AdminCustomersCustomerIdIndexRoute
+  '/admin/projects/$projectId': typeof AdminProjectsProjectIdIndexRoute
+  '/admin/users/$userId': typeof AdminUsersUserIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -390,6 +413,9 @@ export interface FileRoutesById {
   '/admin/projects/$projectId/edit': typeof AdminProjectsProjectIdEditRoute
   '/admin/projects/$projectId/members': typeof AdminProjectsProjectIdMembersRoute
   '/admin/users/$userId/edit': typeof AdminUsersUserIdEditRoute
+  '/admin/customers/$customerId/': typeof AdminCustomersCustomerIdIndexRoute
+  '/admin/projects/$projectId/': typeof AdminProjectsProjectIdIndexRoute
+  '/admin/users/$userId/': typeof AdminUsersUserIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -435,6 +461,9 @@ export interface FileRouteTypes {
     | '/admin/projects/$projectId/edit'
     | '/admin/projects/$projectId/members'
     | '/admin/users/$userId/edit'
+    | '/admin/customers/$customerId/'
+    | '/admin/projects/$projectId/'
+    | '/admin/users/$userId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -457,13 +486,10 @@ export interface FileRouteTypes {
     | '/staff/dashboard'
     | '/admin'
     | '/portal'
-    | '/admin/customers/$customerId'
     | '/admin/customers/new'
-    | '/admin/projects/$projectId'
     | '/admin/projects/new'
     | '/admin/tickets/$ticketId'
     | '/admin/tickets/new'
-    | '/admin/users/$userId'
     | '/admin/users/new'
     | '/portal/projects/$projectId'
     | '/portal/tickets/$ticketId'
@@ -478,6 +504,9 @@ export interface FileRouteTypes {
     | '/admin/projects/$projectId/edit'
     | '/admin/projects/$projectId/members'
     | '/admin/users/$userId/edit'
+    | '/admin/customers/$customerId'
+    | '/admin/projects/$projectId'
+    | '/admin/users/$userId'
   id:
     | '__root__'
     | '/'
@@ -521,6 +550,9 @@ export interface FileRouteTypes {
     | '/admin/projects/$projectId/edit'
     | '/admin/projects/$projectId/members'
     | '/admin/users/$userId/edit'
+    | '/admin/customers/$customerId/'
+    | '/admin/projects/$projectId/'
+    | '/admin/users/$userId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -824,12 +856,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalTicketsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/customers/$customerId/': {
+      id: '/admin/customers/$customerId/'
+      path: '/'
+      fullPath: '/admin/customers/$customerId/'
+      preLoaderRoute: typeof AdminCustomersCustomerIdIndexRouteImport
+      parentRoute: typeof AdminCustomersCustomerIdRoute
+    }
     '/admin/customers/$customerId/edit': {
       id: '/admin/customers/$customerId/edit'
       path: '/edit'
       fullPath: '/admin/customers/$customerId/edit'
       preLoaderRoute: typeof AdminCustomersCustomerIdEditRouteImport
       parentRoute: typeof AdminCustomersCustomerIdRoute
+    }
+    '/admin/projects/$projectId/': {
+      id: '/admin/projects/$projectId/'
+      path: '/'
+      fullPath: '/admin/projects/$projectId/'
+      preLoaderRoute: typeof AdminProjectsProjectIdIndexRouteImport
+      parentRoute: typeof AdminProjectsProjectIdRoute
     }
     '/admin/projects/$projectId/edit': {
       id: '/admin/projects/$projectId/edit'
@@ -845,6 +891,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProjectsProjectIdMembersRouteImport
       parentRoute: typeof AdminProjectsProjectIdRoute
     }
+    '/admin/users/$userId/': {
+      id: '/admin/users/$userId/'
+      path: '/'
+      fullPath: '/admin/users/$userId/'
+      preLoaderRoute: typeof AdminUsersUserIdIndexRouteImport
+      parentRoute: typeof AdminUsersUserIdRoute
+    }
     '/admin/users/$userId/edit': {
       id: '/admin/users/$userId/edit'
       path: '/edit'
@@ -857,11 +910,13 @@ declare module '@tanstack/react-router' {
 
 interface AdminCustomersCustomerIdRouteChildren {
   AdminCustomersCustomerIdEditRoute: typeof AdminCustomersCustomerIdEditRoute
+  AdminCustomersCustomerIdIndexRoute: typeof AdminCustomersCustomerIdIndexRoute
 }
 
 const AdminCustomersCustomerIdRouteChildren: AdminCustomersCustomerIdRouteChildren =
   {
     AdminCustomersCustomerIdEditRoute: AdminCustomersCustomerIdEditRoute,
+    AdminCustomersCustomerIdIndexRoute: AdminCustomersCustomerIdIndexRoute,
   }
 
 const AdminCustomersCustomerIdRouteWithChildren =
@@ -872,12 +927,14 @@ const AdminCustomersCustomerIdRouteWithChildren =
 interface AdminProjectsProjectIdRouteChildren {
   AdminProjectsProjectIdEditRoute: typeof AdminProjectsProjectIdEditRoute
   AdminProjectsProjectIdMembersRoute: typeof AdminProjectsProjectIdMembersRoute
+  AdminProjectsProjectIdIndexRoute: typeof AdminProjectsProjectIdIndexRoute
 }
 
 const AdminProjectsProjectIdRouteChildren: AdminProjectsProjectIdRouteChildren =
   {
     AdminProjectsProjectIdEditRoute: AdminProjectsProjectIdEditRoute,
     AdminProjectsProjectIdMembersRoute: AdminProjectsProjectIdMembersRoute,
+    AdminProjectsProjectIdIndexRoute: AdminProjectsProjectIdIndexRoute,
   }
 
 const AdminProjectsProjectIdRouteWithChildren =
@@ -887,10 +944,12 @@ const AdminProjectsProjectIdRouteWithChildren =
 
 interface AdminUsersUserIdRouteChildren {
   AdminUsersUserIdEditRoute: typeof AdminUsersUserIdEditRoute
+  AdminUsersUserIdIndexRoute: typeof AdminUsersUserIdIndexRoute
 }
 
 const AdminUsersUserIdRouteChildren: AdminUsersUserIdRouteChildren = {
   AdminUsersUserIdEditRoute: AdminUsersUserIdEditRoute,
+  AdminUsersUserIdIndexRoute: AdminUsersUserIdIndexRoute,
 }
 
 const AdminUsersUserIdRouteWithChildren =

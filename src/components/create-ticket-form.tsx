@@ -303,16 +303,16 @@ export function CreateTicketForm({ initialProjectId, cancelTo, successTo }: Crea
             <p className="text-xs text-muted-foreground">File uploads are stored locally in this demo UI only.</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex justify-end gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => navigate({ to: cancelTo })}>
+              Cancel
+            </Button>
             <Button
               type="submit"
               size="sm"
               disabled={mutation.isPending || projects.length === 0 || categories.length === 0}
             >
               {mutation.isPending ? "Submitting..." : "Submit ticket"}
-            </Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => navigate({ to: cancelTo })}>
-              Cancel
             </Button>
           </div>
         </form>

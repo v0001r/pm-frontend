@@ -254,6 +254,7 @@ export function CustomerContactsTab({ customerId, canManage }: CustomerContactsT
           </DialogHeader>
           <ContactForm
             mode="create"
+            onCancel={() => setCreateOpen(false)}
             onSubmit={async (payload) => {
               await createMutation.mutateAsync(payload);
             }}
@@ -272,6 +273,7 @@ export function CustomerContactsTab({ customerId, canManage }: CustomerContactsT
               key={editingContact._id}
               mode="edit"
               initial={editingContact}
+              onCancel={() => setEditingContact(null)}
               onSubmit={async (payload) => {
                 await updateMutation.mutateAsync({
                   contactId: editingContact._id,

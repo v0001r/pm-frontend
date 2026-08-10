@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { FormActions } from "@/components/form-actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -9,6 +9,7 @@ interface ContactFormProps {
   initial?: Partial<CustomerContact>;
   mode: "create" | "edit";
   onSubmit: (payload: CreateContactPayload | UpdateContactPayload) => Promise<void>;
+  onCancel: () => void;
   submitLabel?: string;
 }
 
@@ -16,6 +17,7 @@ export function ContactForm({
   initial,
   mode,
   onSubmit,
+  onCancel,
   submitLabel = mode === "create" ? "Add contact" : "Save changes",
 }: ContactFormProps) {
   const [name, setName] = useState(initial?.name ?? "");
@@ -116,9 +118,7 @@ export function ContactForm({
         <Switch id="contact-portal" checked={portalAccess} onCheckedChange={setPortalAccess} />
       </div>
 
-      <Button type="submit" disabled={submitting}>
-        {submitting ? "Saving..." : submitLabel}
-      </Button>
+      <FormActions submitLabel={submitLabel} submitting={submitting} onCancel={onCancel} />
     </form>
   );
 }

@@ -27,6 +27,7 @@ function NewCustomerPage() {
         <div className="p-4">
           <CustomerForm
             submitLabel="Create customer"
+            onCancel={() => navigate({ to: "/admin/customers" })}
             onSubmit={async (payload) => {
               try {
                 const customer = await createCustomer(payload as CreateCustomerPayload);

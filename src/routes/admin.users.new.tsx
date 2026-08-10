@@ -27,6 +27,7 @@ function NewUserPage() {
         <div className="p-4">
           <InternalUserForm
             mode="create"
+            onCancel={() => navigate({ to: "/admin/users" })}
             onSubmit={async (payload) => {
               try {
                 const user = await createInternalUser(payload as CreateInternalUserPayload);

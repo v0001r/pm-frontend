@@ -43,6 +43,7 @@ function EditCustomerPage() {
             isEdit
             initial={data}
             submitLabel="Save changes"
+            onCancel={() => navigate({ to: "/admin/customers/$customerId", params: { customerId } })}
             onSubmit={async (payload) => {
               try {
                 await updateCustomer(customerId, payload as UpdateCustomerPayload);
