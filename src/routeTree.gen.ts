@@ -37,6 +37,7 @@ import { Route as AdminProjectsProjectIdRouteImport } from './routes/admin.proje
 import { Route as AdminProjectsNewRouteImport } from './routes/admin.projects.new'
 import { Route as AdminTicketsIndexRouteImport } from './routes/admin.tickets.index'
 import { Route as AdminTicketsTicketIdRouteImport } from './routes/admin.tickets.$ticketId'
+import { Route as AdminTicketsNewRouteImport } from './routes/admin.tickets.new'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin.users.index'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin.users.$userId'
 import { Route as AdminUsersNewRouteImport } from './routes/admin.users.new'
@@ -191,6 +192,11 @@ const AdminTicketsTicketIdRoute = AdminTicketsTicketIdRouteImport.update({
   path: '/admin/tickets/$ticketId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminTicketsNewRoute = AdminTicketsNewRouteImport.update({
+  id: '/admin/tickets/new',
+  path: '/admin/tickets/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
   id: '/admin/users/',
   path: '/admin/users/',
@@ -281,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/admin/projects/$projectId': typeof AdminProjectsProjectIdRouteWithChildren
   '/admin/projects/new': typeof AdminProjectsNewRoute
   '/admin/tickets/$ticketId': typeof AdminTicketsTicketIdRoute
+  '/admin/tickets/new': typeof AdminTicketsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRouteWithChildren
   '/admin/users/new': typeof AdminUsersNewRoute
   '/portal/projects/$projectId': typeof PortalProjectsProjectIdRoute
@@ -323,6 +330,7 @@ export interface FileRoutesByTo {
   '/admin/projects/$projectId': typeof AdminProjectsProjectIdRouteWithChildren
   '/admin/projects/new': typeof AdminProjectsNewRoute
   '/admin/tickets/$ticketId': typeof AdminTicketsTicketIdRoute
+  '/admin/tickets/new': typeof AdminTicketsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRouteWithChildren
   '/admin/users/new': typeof AdminUsersNewRoute
   '/portal/projects/$projectId': typeof PortalProjectsProjectIdRoute
@@ -366,6 +374,7 @@ export interface FileRoutesById {
   '/admin/projects/$projectId': typeof AdminProjectsProjectIdRouteWithChildren
   '/admin/projects/new': typeof AdminProjectsNewRoute
   '/admin/tickets/$ticketId': typeof AdminTicketsTicketIdRoute
+  '/admin/tickets/new': typeof AdminTicketsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRouteWithChildren
   '/admin/users/new': typeof AdminUsersNewRoute
   '/portal/projects/$projectId': typeof PortalProjectsProjectIdRoute
@@ -410,6 +419,7 @@ export interface FileRouteTypes {
     | '/admin/projects/$projectId'
     | '/admin/projects/new'
     | '/admin/tickets/$ticketId'
+    | '/admin/tickets/new'
     | '/admin/users/$userId'
     | '/admin/users/new'
     | '/portal/projects/$projectId'
@@ -452,6 +462,7 @@ export interface FileRouteTypes {
     | '/admin/projects/$projectId'
     | '/admin/projects/new'
     | '/admin/tickets/$ticketId'
+    | '/admin/tickets/new'
     | '/admin/users/$userId'
     | '/admin/users/new'
     | '/portal/projects/$projectId'
@@ -494,6 +505,7 @@ export interface FileRouteTypes {
     | '/admin/projects/$projectId'
     | '/admin/projects/new'
     | '/admin/tickets/$ticketId'
+    | '/admin/tickets/new'
     | '/admin/users/$userId'
     | '/admin/users/new'
     | '/portal/projects/$projectId'
@@ -537,6 +549,7 @@ export interface RootRouteChildren {
   AdminProjectsProjectIdRoute: typeof AdminProjectsProjectIdRouteWithChildren
   AdminProjectsNewRoute: typeof AdminProjectsNewRoute
   AdminTicketsTicketIdRoute: typeof AdminTicketsTicketIdRoute
+  AdminTicketsNewRoute: typeof AdminTicketsNewRoute
   AdminUsersUserIdRoute: typeof AdminUsersUserIdRouteWithChildren
   AdminUsersNewRoute: typeof AdminUsersNewRoute
   PortalProjectsProjectIdRoute: typeof PortalProjectsProjectIdRoute
@@ -748,6 +761,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTicketsTicketIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/tickets/new': {
+      id: '/admin/tickets/new'
+      path: '/admin/tickets/new'
+      fullPath: '/admin/tickets/new'
+      preLoaderRoute: typeof AdminTicketsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/users/': {
       id: '/admin/users/'
       path: '/admin/users'
@@ -902,6 +922,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminProjectsProjectIdRoute: AdminProjectsProjectIdRouteWithChildren,
   AdminProjectsNewRoute: AdminProjectsNewRoute,
   AdminTicketsTicketIdRoute: AdminTicketsTicketIdRoute,
+  AdminTicketsNewRoute: AdminTicketsNewRoute,
   AdminUsersUserIdRoute: AdminUsersUserIdRouteWithChildren,
   AdminUsersNewRoute: AdminUsersNewRoute,
   PortalProjectsProjectIdRoute: PortalProjectsProjectIdRoute,

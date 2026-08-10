@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Download, Eye, MessageSquare, MoreHorizontal, Upload } from "lucide-react";
+import { Download, Eye, MessageSquare, MoreHorizontal, Plus, Upload } from "lucide-react";
 import { RequireRole } from "@/components/guard";
 import {
   DataTableActions,
@@ -233,6 +233,13 @@ function TicketsPage() {
                   <Download className="size-4" /> Export CSV
                 </Button>
               </>
+            }
+            addAction={
+              <Button asChild size="sm" className="rounded-xl">
+                <Link to="/admin/tickets/new">
+                  <Plus className="size-4" /> Create ticket
+                </Link>
+              </Button>
             }
           />
         }

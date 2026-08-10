@@ -7,6 +7,18 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  // Render (and most Node hosts) need the node-server preset — the Lovable default
+  // targets Cloudflare and the Nitro bundle step is very memory-heavy without tuning.
+  nitro: {
+    preset: "node-server",
+  },
+  vite: {
+    build: {
+      sourcemap: false,
+      // Fewer parallel file ops lowers peak memory during Rollup/Nitro on small CI boxes.
+      reportCompressedSize: false,
+    },
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this

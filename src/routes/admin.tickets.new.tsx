@@ -1,36 +1,36 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { RequireRole } from "@/components/guard";
+import { AdminOrStaffRoute } from "@/components/guard";
 import { CreateTicketForm } from "@/components/create-ticket-form";
 
 interface NewTicketSearch {
   projectId?: string;
 }
 
-export const Route = createFileRoute("/portal/tickets/new")({
+export const Route = createFileRoute("/admin/tickets/new")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>): NewTicketSearch => ({
     projectId: typeof search["projectId"] === "string" ? search["projectId"] : undefined,
   }),
   head: () => ({
     meta: [
-      { title: "Create Ticket — Helpdesk" },
-      { name: "description", content: "Submit a new support request with project, category, priority and attachments." },
+      { title: "Create Ticket — Helpdesk Admin" },
+      { name: "description", content: "Create a support ticket for any accessible project." },
     ],
   }),
   component: () => (
-    <RequireRole roles={["Admin", "Staff", "Client"]}>
-      <PortalNewTicket />
-    </RequireRole>
+    <AdminOrStaffRoute>
+      <AdminNewTicket />
+    </AdminOrStaffRoute>
   ),
 });
 
-function PortalNewTicket() {
+function AdminNewTicket() {
   const { projectId } = Route.useSearch();
   return (
     <CreateTicketForm
       initialProjectId={projectId}
-      cancelTo="/portal/tickets"
-      successTo="/portal/tickets/$ticketId"
+      cancelTo="/admin/tickets"
+      successTo="/admin/tickets/$ticketId"
     />
   );
 }

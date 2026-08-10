@@ -10,6 +10,11 @@ export async function fetchUsers() {
   return payload.items as User[];
 }
 
+export async function fetchClientUsers() {
+  const users = await fetchUsers();
+  return users.filter((user) => user.role === "Client");
+}
+
 export async function fetchEmployees() {
   const users = await fetchUsers();
   return users.filter((user) => user.role === "Admin" || user.role === "Staff");

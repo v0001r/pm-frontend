@@ -3,7 +3,7 @@ import { initials } from "@/lib/types";
 import type { ProjectStatus } from "@/lib/types";
 import type { ComponentType, ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowDownRight, ArrowUpRight, Inbox, type LucideProps } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Inbox, Minus, type LucideProps } from "lucide-react";
 
 const badgeBase =
   "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide whitespace-nowrap transition-colors shadow-sm";
@@ -119,45 +119,57 @@ export function KpiCard({
   hint?: string;
   to?: string;
   search?: Record<string, string>;
-  tone?: "default" | "danger" | "warning" | "success" | "primary";
+  tone?: "default" | "danger" | "warning" | "success" | "primary" | "info" | "teal" | "lime";
   icon?: ComponentType<LucideProps>;
-  trend?: number;
+  trend?: number | null | undefined;
 }) {
   const toneClass = {
-    default: "bg-muted text-muted-foreground",
-    primary: "bg-primary/10 text-primary",
-    danger: "bg-destructive/10 text-destructive",
-    warning: "bg-warning/10 text-warning",
-    success: "bg-success/10 text-success",
+    default: "bg-slate-100 text-slate-600",
+    primary: "bg-violet-100 text-violet-600",
+    info: "bg-sky-100 text-sky-600",
+    teal: "bg-teal-100 text-teal-600",
+    lime: "bg-lime-100 text-lime-600",
+    danger: "bg-rose-100 text-rose-600",
+    warning: "bg-amber-100 text-amber-600",
+    success: "bg-emerald-100 text-emerald-600",
   }[tone];
 
+  const hasTrend = trend !== undefined && trend !== null;
   const up = (trend ?? 0) >= 0;
 
   const body = (
-    <div className="panel lift group relative h-full overflow-hidden p-5">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[13px] font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
+    <div className="panel relative h-full overflow-hidden rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+      {hasTrend && (
+        <span
+          className={cn(
+            "absolute top-4 right-4 inline-flex items-center gap-0.5 text-[13px] font-semibold",
+            trend === 0 ? "text-muted-foreground" : up ? "text-emerald-600" : "text-rose-600",
+          )}
+        >
+          {trend === 0 ? (
+            <Minus className="size-3.5" />
+          ) : up ? (
+            <ArrowUpRight className="size-3.5" />
+          ) : (
+            <ArrowDownRight className="size-3.5" />
+          )}
+          {trend === 0 ? "—" : `${up ? "+" : ""}${trend}%`}
+        </span>
+      )}
+
+      <div className="flex items-center gap-4">
         {Icon && (
-          <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl shadow-sm", toneClass)}>
-            <Icon className="size-[18px]" />
+          <span className={cn("grid size-12 shrink-0 place-items-center rounded-xl", toneClass)}>
+            <Icon className="size-5" />
           </span>
         )}
-      </div>
-      <p className="tabular mt-4 text-[32px] leading-none font-bold tracking-tight text-foreground">{value}</p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {trend !== undefined && (
-          <span
-            className={cn(
-              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[12px] font-semibold",
-              up ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
-            )}
-          >
-            {up ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
-            {Math.abs(trend)}%
-          </span>
-        )}
-        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+        <div className="min-w-0 flex-1 pr-14">
+          <p className="text-sm font-medium text-muted-foreground">{label}</p>
+          <p className="tabular mt-1 text-[1.75rem] leading-none font-bold tracking-tight text-foreground">
+            {value}
+          </p>
+          {hint && <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>}
+        </div>
       </div>
     </div>
   );
@@ -167,7 +179,7 @@ export function KpiCard({
     <Link
       to={to}
       search={search as never}
-      className="block rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+      className="block rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
     >
       {body}
     </Link>

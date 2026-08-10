@@ -317,7 +317,7 @@ export interface CreateTicketPayload {
   number?: string;
   subject: string;
   description: string;
-  clientId: string;
+  clientId?: string;
   projectId: string;
   categoryId: string;
   priority?: Priority;

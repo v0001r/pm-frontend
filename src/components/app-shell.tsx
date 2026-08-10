@@ -65,6 +65,7 @@ const adminNav: NavItem[] = [
   { label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Projects", to: "/admin/projects", icon: FolderKanban },
   { label: "Tickets", to: "/admin/tickets", icon: TicketIcon },
+  { label: "Create Ticket", to: "/admin/tickets/new", icon: Plus },
   { label: "Customers", to: "/admin/customers", icon: Users },
   { label: "Users", to: "/admin/users", icon: UserCog },
   { label: "Reports", to: "/admin/reports", icon: BarChart3 },
@@ -74,6 +75,7 @@ const agentNav: NavItem[] = [
   { label: "Dashboard", to: "/staff/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Projects", to: "/admin/projects", icon: FolderKanban },
   { label: "Tickets", to: "/admin/tickets", icon: TicketIcon },
+  { label: "Create Ticket", to: "/admin/tickets/new", icon: Plus },
   { label: "Customers", to: "/admin/customers", icon: Users },
 ];
 
@@ -490,13 +492,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="ml-auto flex items-center gap-1 sm:ml-0">
-              {user?.role === "Client" && (
-                <Button asChild size="sm" className="hidden h-10 rounded-lg sm:inline-flex">
-                  <Link to="/portal/tickets/new">
-                    <Plus className="size-4" /> New ticket
-                  </Link>
-                </Button>
-              )}
+              <Button asChild size="sm" className="hidden h-10 rounded-lg sm:inline-flex">
+                <Link to={user?.role === "Client" ? "/portal/tickets/new" : "/admin/tickets/new"}>
+                  <Plus className="size-4" /> New ticket
+                </Link>
+              </Button>
               <ThemeToggle />
               <NotificationBell />
               <ProfileMenu />

@@ -146,7 +146,7 @@ function ProjectsPage() {
       header={
         <ListingPageHeader
           title="Projects"
-          description="Customer projects with progress, deadlines and team assignments."
+          description=""
           breadcrumbs={[{ label: "Admin", to: "/admin" }, { label: "Projects" }]}
           addAction={
             isAdmin ? (
