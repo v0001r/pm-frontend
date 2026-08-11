@@ -9,7 +9,6 @@ import {
   SettingsField,
   SettingsPageHeader,
   SettingsShell,
-  SettingsUploadBox,
   settingsSectionMeta,
   type SettingsSection,
 } from "@/components/settings-shell";
@@ -21,7 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/data-table";
-import { MIRAKI_LOGO_SRC } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -222,9 +220,6 @@ function CompanySettings({
   form: CompanySettings;
   onChange: <K extends keyof CompanySettings>(key: K, value: CompanySettings[K]) => void;
 }) {
-  const logoPreview = form.logoUrl || MIRAKI_LOGO_SRC;
-  const faviconPreview = form.faviconUrl || undefined;
-
   return (
     <SettingsCard title="Organization Details" description="Basic company information visible across the platform.">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -244,20 +239,6 @@ function CompanySettings({
         <SettingsField label="Website">
           <Input value={form.website} onChange={(e) => onChange("website", e.target.value)} />
         </SettingsField>
-        <SettingsUploadBox
-          label="Logo"
-          previewSrc={logoPreview}
-          context="settings-logo"
-          onUploaded={(url) => onChange("logoUrl", url)}
-        />
-        <SettingsUploadBox
-          label="Favicon"
-          hint="Click to upload"
-          previewSrc={faviconPreview}
-          context="settings-favicon"
-          accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg,image/webp"
-          onUploaded={(url) => onChange("faviconUrl", url)}
-        />
         <SettingsField label="Company address" className="sm:col-span-2">
           <Textarea rows={3} value={form.address} onChange={(e) => onChange("address", e.target.value)} />
         </SettingsField>
