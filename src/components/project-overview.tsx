@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -19,6 +19,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { LucideProps } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 import { AssignProjectMemberDialog } from "@/components/assign-project-member-dialog";
+import { DeleteEntityDialog } from "@/components/delete-entity-dialog";
 import { ProjectFormSheet } from "@/components/project-form-sheet";
 import { TicketFormSheet } from "@/components/ticket-form-sheet";
 import {
@@ -32,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/data-table";
-import { EmptyState, ProjectStatusBadge, StatusBadge, TableSkeleton } from "@/components/primitives";
+import { EmptyState, ProjectStatusBadge, StatusBadge, TableSkeleton, categoryChartColor, statusChartColor } from "@/components/primitives";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,13 +48,22 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { getApiErrorMessage } from "@/lib/api";
 import { describeProjectActivity } from "@/lib/project-activity";
-import { fetchProject, fetchProjectActivities, fetchProjectMembers, removeProjectMember } from "@/lib/projects";
+import { deleteProject, fetchProject, fetchProjectActivities, fetchProjectMembers, removeProjectMember } from "@/lib/projects";
 import { fetchTicketsPage } from "@/lib/tickets";
 import { formatDate, relativeTime } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { ProjectMember, TicketStatus } from "@/lib/types";
 
-const chartColors = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-4)", "var(--color-chart-3)"];
+const projectTicketGroupChartColors: Record<string, string> = {
+  Open: "var(--color-info)",
+  "In Progress": "var(--color-warning)",
+  "On Hold": "var(--color-muted-foreground)",
+  Completed: "var(--color-success)",
+};
+
+function projectTicketGroupChartColor(name: string) {
+  return projectTicketGroupChartColors[name] ?? categoryChartColor(name);
+}
 
 function OverviewStatCard({
   label,
@@ -154,9 +164,11 @@ export function ProjectOverview({
   const isAdmin = mode === "admin" && user?.role === "Admin";
   const isClient = mode === "client";
   const backTo = isClient ? "/portal/projects" : "/admin/projects";
+  const navigate = useNavigate();
   const [assignOpen, setAssignOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(initialEditOpen);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<ProjectMember | null>(null);
 
   const projectQuery = useQuery({
@@ -182,6 +194,15 @@ export function ProjectOverview({
     onError: (error) => {
       toast.error(getApiErrorMessage(error, "Failed to remove member"));
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteProject(projectId),
+    onSuccess: () => {
+      toast.success("Project deleted.");
+      navigate({ to: backTo });
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error, "Failed to delete project")),
   });
 
   const activitiesQuery = useQuery({
@@ -283,6 +304,12 @@ export function ProjectOverview({
               <Button size="sm" onClick={() => setEditOpen(true)}>
                 <Pencil className="size-4" />
                 Edit Project
+              </Button>
+            ) : null}
+            {isAdmin ? (
+              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="size-4" />
+                Delete
               </Button>
             ) : null}
           </div>
@@ -546,8 +573,8 @@ export function ProjectOverview({
                       paddingAngle={2}
                       isAnimationActive={false}
                     >
-                      {ticketChartData.map((entry, index) => (
-                        <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
+                      {ticketChartData.map((entry) => (
+                        <Cell key={entry.name} fill={projectTicketGroupChartColor(entry.name)} />
                       ))}
                     </Pie>
                     <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6 }} />
@@ -560,12 +587,12 @@ export function ProjectOverview({
                   <span className="ml-1 text-sm font-medium text-muted-foreground">Total</span>
                 </p>
                 <ul className="space-y-2 text-sm">
-                  {ticketChartData.map((item, index) => (
+                  {ticketChartData.map((item) => (
                     <li key={item.name} className="flex items-center justify-between gap-4">
                       <span className="flex items-center gap-2 text-muted-foreground">
                         <span
                           className="size-2.5 rounded-full"
-                          style={{ backgroundColor: chartColors[index % chartColors.length] }}
+                          style={{ backgroundColor: projectTicketGroupChartColor(item.name) }}
                         />
                         {item.name}
                       </span>
@@ -640,6 +667,19 @@ export function ProjectOverview({
           />
         </>
       ) : null}
+
+      <DeleteEntityDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete project?"
+        description={
+          project
+            ? `${project.name} will be permanently removed. Projects with tickets cannot be deleted.`
+            : ""
+        }
+        isPending={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+      />
     </div>
   );
 }

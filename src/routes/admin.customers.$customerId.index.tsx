@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Building2, FolderKanban, Info, Mail, Pencil, Ticket, Users } from "lucide-react";
+import { ArrowLeft, Building2, FolderKanban, Info, Mail, Pencil, Ticket, Trash2, Users } from "lucide-react";
 import { RequireRole } from "@/components/guard";
 import { CustomerContactsTab } from "@/components/customer-contacts-tab";
+import { DeleteEntityDialog } from "@/components/delete-entity-dialog";
 import { CustomerFormSheet } from "@/components/customer-form-sheet";
 import { CustomerProjectsTab } from "@/components/customer-projects-tab";
 import { CustomerTicketsTab } from "@/components/customer-tickets-tab";
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { getApiErrorMessage } from "@/lib/api";
 import { isAdmin, isStaff } from "@/lib/auth";
 import {
+  deleteCustomer,
   fetchCustomerOverview,
   resendCustomerInvitation,
   updateCustomerStatus,
@@ -51,6 +53,7 @@ function CustomerDetailPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<CustomerTab>("contacts");
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (routeSearch.edit) {
@@ -77,6 +80,15 @@ function CustomerDetailPage() {
     mutationFn: () => resendCustomerInvitation(customerId),
     onSuccess: () => toast.success("Invitation sent."),
     onError: (error) => toast.error(getApiErrorMessage(error, "Failed to send invitation")),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteCustomer(customerId),
+    onSuccess: () => {
+      toast.success("Customer deleted.");
+      navigate({ to: "/admin/customers" });
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error, "Failed to delete customer")),
   });
 
   if (overviewQuery.isLoading || !overviewQuery.data) {
@@ -133,6 +145,15 @@ function CustomerDetailPage() {
                   }
                 >
                   {customer.status === "Active" ? "Deactivate" : "Activate"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="size-4" />
+                  Delete
                 </Button>
               </>
             )}
@@ -201,6 +222,15 @@ function CustomerDetailPage() {
         mode="edit"
         customerId={customerId}
         onSaved={() => overviewQuery.refetch()}
+      />
+
+      <DeleteEntityDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete customer?"
+        description={`${customer.companyName} will be permanently removed. Customers with projects or tickets cannot be deleted.`}
+        isPending={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
       />
     </div>
   );

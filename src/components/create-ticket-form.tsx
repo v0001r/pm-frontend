@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Paperclip, X } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/primitives";
+import { FileUploadField } from "@/components/file-upload-field";
 import { fieldInputClass, FormField } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,8 @@ import { fetchCategories } from "@/lib/categories";
 import { fetchProjects } from "@/lib/projects";
 import { createTicket } from "@/lib/tickets";
 import { fetchEmployees } from "@/lib/users";
-import { PRIORITIES, SLA_MATRIX, SETTABLE_STATUSES, fullName, type Priority, type TicketStatus } from "@/lib/types";
+import type { UploadedFileRef } from "@/lib/uploads";
+import { PRIORITIES, SETTABLE_STATUSES, fullName, type Priority, type TicketStatus } from "@/lib/types";
 
 interface CreateTicketFormProps {
   initialProjectId?: string;
@@ -48,7 +49,7 @@ export function CreateTicketForm({
   const [status, setStatus] = useState<TicketStatus>("New");
   const [description, setDescription] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
-  const [files, setFiles] = useState<{ name: string; size: string }[]>([]);
+  const [files, setFiles] = useState<UploadedFileRef[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const projectsQuery = useQuery({
@@ -105,6 +106,7 @@ export function CreateTicketForm({
         priority,
         ...(isStaffOrAdmin && !(assignedTo && status === "New") ? { status } : {}),
         ...(isStaffOrAdmin && assignedTo ? { assignedTo } : {}),
+        ...(files.length > 0 ? { attachments: files } : {}),
       });
     },
     onSuccess: (ticket) => {
@@ -260,7 +262,6 @@ export function CreateTicketForm({
                   ))}
                 </SelectContent>
               </Select>
-             
             </div>
 
             {isStaffOrAdmin ? (
@@ -303,42 +304,13 @@ export function CreateTicketForm({
             />
           </FormField>
 
-          <div className="grid gap-1.5">
-            <Label>Attachments</Label>
-            <label className="flex cursor-pointer items-center gap-2 rounded-sm border border-dashed px-3 py-4 text-sm text-muted-foreground hover:bg-accent/50">
-              <Paperclip className="size-4" />
-              Attach screenshots or documents (max 5 files, 10MB each)
-              <input
-                type="file"
-                multiple
-                className="hidden"
-                onChange={(event) => {
-                  const picked = Array.from(event.target.files ?? []).map((file) => ({
-                    name: file.name,
-                    size: `${Math.max(1, Math.round(file.size / 1024))} KB`,
-                  }));
-                  setFiles((previous) => [...previous, ...picked].slice(0, 5));
-                }}
-              />
-            </label>
-            {files.length > 0 && (
-              <ul className="flex flex-wrap gap-2">
-                {files.map((file, index) => (
-                  <li key={`${file.name}-${index}`} className="flex items-center gap-1.5 rounded-sm border px-2 py-1 text-xs">
-                    {file.name} · {file.size}
-                    <button
-                      type="button"
-                      onClick={() => setFiles(files.filter((_, fileIndex) => fileIndex !== index))}
-                      aria-label={`Remove ${file.name}`}
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="text-xs text-muted-foreground">File uploads are stored locally in this demo UI only.</p>
-          </div>
+          <FileUploadField
+            context="ticket-attachment"
+            files={files}
+            onChange={setFiles}
+            label="Attachments"
+            hint="Max 5 files, 10MB each"
+          />
 
           <div className="flex justify-end gap-2">
             <Button

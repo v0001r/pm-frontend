@@ -152,34 +152,6 @@ export function CustomerTicketsTab({ customerId }: { customerId: string }) {
     setPage(1);
   };
 
-  const exportCsv = () => {
-    const header = "Ticket,Subject,Client,Project,Category,Priority,Status,Agent,Created,Due\n";
-    const body = rows
-      .map((ticket) => {
-        const due = getTicketSlaDueAt(ticket);
-        return [
-          ticket.number,
-          `"${ticket.subject}"`,
-          getTicketUserLabel(ticket.clientId),
-          getTicketProjectLabel(ticket),
-          getTicketCategoryLabel(ticket),
-          ticket.priority,
-          ticket.status,
-          getTicketUserLabel(ticket.assignedTo),
-          formatDate(ticket.createdAt),
-          due ? formatDate(due) : "",
-        ].join(",");
-      })
-      .join("\n");
-    const url = URL.createObjectURL(new Blob([header + body], { type: "text/csv" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "tickets.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success(`Exported ${rows.length} tickets to CSV.`);
-  };
-
   const loading = ticketsQuery.isLoading || ticketsQuery.isFetching;
 
   return (
@@ -195,7 +167,6 @@ export function CustomerTicketsTab({ customerId }: { customerId: string }) {
         activeFilterCount={activeCount}
         onFilterApply={apply}
         onFilterClear={clearFilters}
-        onExport={exportCsv}
         primaryAction={
           <Button size="sm" className="rounded-md" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" /> New ticket
@@ -257,7 +228,6 @@ export function CustomerTicketsTab({ customerId }: { customerId: string }) {
           title="No tickets match these filters"
           description="Try a different search term, or reset the filters to see all tickets for this customer."
           action={<Button size="sm" onClick={clearFilters}>Reset filters</Button>}
-          secondaryAction={<Button size="sm" variant="outline" onClick={exportCsv}>Export current view</Button>}
         />
       ) : (
         <>

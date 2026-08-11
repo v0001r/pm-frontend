@@ -88,7 +88,6 @@ function MyTickets() {
         activeFilterCount={activeCount}
         onFilterApply={apply}
         onFilterClear={clearFilters}
-        onExport={() => toast.info("Export coming soon.")}
         primaryAction={
           <Button asChild size="sm" className="rounded-md">
             <Link to="/portal/tickets/new">

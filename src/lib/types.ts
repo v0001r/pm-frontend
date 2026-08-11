@@ -280,12 +280,28 @@ export interface TicketRecord {
   sla?: TicketSlaSummary | null;
 }
 
+export interface TicketSlaCycleHistory {
+  _id: string;
+  cycleNumber: number;
+  assignmentSlaDueAt?: string | null;
+  assignmentSlaMetAt?: string | null;
+  assignmentSlaStatus?: string;
+  assignmentSlaBreached?: boolean;
+  resolutionSlaDueAt?: string | null;
+  resolutionSlaMetAt?: string | null;
+  resolutionSlaStatus?: string;
+  resolutionSlaBreached?: boolean;
+  startedAt: string;
+  endedAt?: string | null;
+}
+
 export interface TicketSlaSummary {
   cycleNumber: number;
   assignmentSlaDueAt?: string | null;
   assignmentSlaStatus?: string;
   resolutionSlaDueAt?: string | null;
   resolutionSlaStatus?: string;
+  history?: TicketSlaCycleHistory[];
 }
 
 export interface TicketActivity {
@@ -304,7 +320,7 @@ export interface TicketMessage {
   authorId: string | TicketUserRef;
   body: string;
   isInternal: boolean;
-  attachments?: { name: string; size: string }[];
+  attachments?: { name: string; size: string; url?: string; key?: string; contentType?: string }[];
   createdAt: string;
 }
 
@@ -326,6 +342,7 @@ export interface CreateTicketPayload {
   priority?: Priority;
   assignedTo?: string;
   status?: TicketStatus;
+  attachments?: { name: string; size: string; url: string; key: string; contentType?: string }[];
 }
 
 export interface UpdateTicketPayload {
@@ -362,6 +379,9 @@ export interface TicketQueryParams {
   clientId?: string;
   assignedTo?: string;
   unassigned?: boolean;
+  tag?: string;
+  createdFrom?: string;
+  createdTo?: string;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
 }
@@ -488,6 +508,19 @@ export interface ApiResponse<T> {
   success: boolean;
   message: string;
   data: T;
+}
+
+export interface CompanySettings {
+  companyName: string;
+  supportEmail: string;
+  contactNumber: string;
+  website: string;
+  address: string;
+  timezone: string;
+  dateFormat: string;
+  logoUrl: string;
+  faviconUrl: string;
+  updatedAt?: string;
 }
 
 export const STATUSES: TicketStatus[] = [

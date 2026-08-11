@@ -1,0 +1,1 @@
+import{_ as e}from"./button-BIUKS4mI.js";async function t(){let{data:t}=await e.get(`/categories`);return t.data.filter(e=>e.active)}export{t};

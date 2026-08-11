@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Search, SlidersHorizontal, Upload } from "lucide-react";
+import { ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,8 +85,6 @@ type ListingSearchRowProps = {
   filterContent?: ReactNode;
   filterTitle?: string;
   showFilters?: boolean;
-  onExport?: () => void;
-  exportLabel?: string;
   primaryAction?: ReactNode;
   className?: string;
   embedded?: boolean;
@@ -107,8 +105,6 @@ export function ListingCardHeader({
   filterContent,
   filterTitle = "Filters",
   showFilters = true,
-  onExport,
-  exportLabel = "Export",
   primaryAction,
   className,
 }: {
@@ -148,15 +144,13 @@ export function ListingCardHeader({
         filterContent={filterContent}
         filterTitle={filterTitle}
         showFilters={showFilters}
-        onExport={onExport}
-        exportLabel={exportLabel}
         primaryAction={primaryAction}
       />
     </div>
   );
 }
 
-function ListingToolbarActions({
+export function ListingToolbarActions({
   filterOpen,
   onFilterOpenChange,
   activeFilterCount = 0,
@@ -165,8 +159,6 @@ function ListingToolbarActions({
   filterContent,
   filterTitle = "Filters",
   showFilters = true,
-  onExport,
-  exportLabel = "Export",
   primaryAction,
 }: Pick<
   ListingSearchRowProps,
@@ -178,8 +170,6 @@ function ListingToolbarActions({
   | "filterContent"
   | "filterTitle"
   | "showFilters"
-  | "onExport"
-  | "exportLabel"
   | "primaryAction"
 >) {
   return (
@@ -213,12 +203,6 @@ function ListingToolbarActions({
           </PopoverContent>
         </Popover>
       ) : null}
-      {onExport ? (
-        <Button type="button" variant="outline" size="sm" onClick={onExport}>
-          <Upload className="size-4" />
-          {exportLabel}
-        </Button>
-      ) : null}
       {primaryAction}
     </div>
   );
@@ -236,8 +220,6 @@ export function ListingSearchRow({
   filterContent,
   filterTitle = "Filters",
   showFilters = true,
-  onExport,
-  exportLabel = "Export",
   primaryAction,
   className,
   embedded = false,
@@ -268,8 +250,6 @@ export function ListingSearchRow({
         filterContent={filterContent}
         filterTitle={filterTitle}
         showFilters={showFilters}
-        onExport={onExport}
-        exportLabel={exportLabel}
         primaryAction={primaryAction}
       />
     </div>

@@ -1,6 +1,7 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, ChevronRight } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronRight, Mail, MailWarning } from "lucide-react";
 import { toast } from "sonner";
 import { RequireRole } from "@/components/guard";
 import {
@@ -8,7 +9,6 @@ import {
   SettingsField,
   SettingsPageHeader,
   SettingsShell,
-  SettingsToggleRow,
   SettingsUploadBox,
   settingsSectionMeta,
   type SettingsSection,
@@ -28,8 +28,48 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TICKET_CATEGORIES } from "@/lib/ticket-categories";
-import { PRIORITIES, SLA_MATRIX } from "@/lib/types";
+import { fetchCompanySettings, fetchNotificationSettings, getApiErrorMessage, updateCompanySettings, updateNotificationSettings, type NotificationEventSetting, type NotificationSettings } from "@/lib/settings";
+import {
+  fetchSlaSettings,
+  combineSlaMinutes,
+  fromSlaMinuteOption,
+  SLA_HOUR_OPTIONS,
+  SLA_MINUTE_OPTIONS,
+  snapSlaHours,
+  toSlaMinuteOption,
+  updateSlaSettings,
+  type SlaPolicy,
+} from "@/lib/sla";
+import type { CompanySettings, Priority } from "@/lib/types";
+import { PRIORITIES } from "@/lib/types";
+
+interface SlaFormRow {
+  priority: Priority;
+  responseHours: string;
+  responseMinutes: string;
+  resolutionHours: string;
+  resolutionMinutes: string;
+}
+
+function policiesToFormRows(policies: SlaPolicy[]): SlaFormRow[] {
+  const byPriority = new Map(policies.map((policy) => [policy.priority, policy]));
+
+  return PRIORITIES.map((priority) => {
+    const policy = byPriority.get(priority);
+    const assignmentMinutes = policy?.assignmentSlaMinutes ?? 0;
+    const resolutionMinutes = policy?.resolutionSlaMinutes ?? 0;
+
+    return {
+      priority,
+      responseHours: String(snapSlaHours(Math.floor(assignmentMinutes / 60))),
+      responseMinutes: toSlaMinuteOption(assignmentMinutes % 60),
+      resolutionHours: String(snapSlaHours(Math.floor(resolutionMinutes / 60))),
+      resolutionMinutes: toSlaMinuteOption(resolutionMinutes % 60),
+    };
+  });
+}
 
 interface SettingsSearch {
   section?: SettingsSection;
@@ -56,51 +96,63 @@ export const Route = createFileRoute("/admin/settings")({
   ),
 });
 
-const defaultCompanyForm = {
-  companyName: "Miraki Technologies",
-  supportEmail: "support@miraki.io",
-  contactNumber: "+1 800 555 0110",
-  website: "https://miraki.io",
-  address: "1200 Enterprise Blvd, Suite 400\nSan Francisco, CA 94105",
-  timezone: "America/Los_Angeles",
-  dateFormat: "MM/DD/YYYY",
-  language: "en-US",
-  currency: "USD",
-  numberFormat: "1,234.56",
-};
-
 function SettingsPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { section = "company" } = Route.useSearch();
   const meta = settingsSectionMeta[section];
 
-  const [companyForm, setCompanyForm] = useState(defaultCompanyForm);
-  const [prefs, setPrefs] = useState({
-    agentSignup: true,
-    emailVerification: true,
-    timeTracking: true,
-    publicPortal: true,
-    attachments: true,
-    dataExport: true,
-    twoFactor: false,
+  const companyQuery = useQuery({
+    queryKey: ["company-settings"],
+    queryFn: fetchCompanySettings,
+    enabled: section === "company",
+  });
+
+  const [companyForm, setCompanyForm] = useState<CompanySettings | null>(null);
+
+  useEffect(() => {
+    if (companyQuery.data) {
+      setCompanyForm(companyQuery.data);
+    }
+  }, [companyQuery.data]);
+
+  useEffect(() => {
+    if (companyQuery.isError) {
+      toast.error(getApiErrorMessage(companyQuery.error, "Failed to load company settings"));
+    }
+  }, [companyQuery.isError, companyQuery.error]);
+
+  const saveMutation = useMutation({
+    mutationFn: updateCompanySettings,
+    onSuccess: (data) => {
+      queryClient.setQueryData(["company-settings"], data);
+      setCompanyForm(data);
+      toast.success("Settings saved.");
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error, "Failed to save settings")),
   });
 
   function setSection(next: SettingsSection) {
     navigate({ to: "/admin/settings", search: { section: next }, replace: true });
   }
 
-  function updateCompany<K extends keyof typeof companyForm>(key: K, value: (typeof companyForm)[K]) {
-    setCompanyForm((current) => ({ ...current, [key]: value }));
+  function updateCompany<K extends keyof CompanySettings>(key: K, value: CompanySettings[K]) {
+    setCompanyForm((current) => (current ? { ...current, [key]: value } : current));
   }
 
   function saveChanges() {
-    toast.success("Settings saved.");
+    if (!companyForm) return;
+    saveMutation.mutate(companyForm);
   }
 
   function resetCompanyForm() {
-    setCompanyForm(defaultCompanyForm);
-    toast.message("Changes discarded.");
+    if (companyQuery.data) {
+      setCompanyForm(companyQuery.data);
+      toast.message("Changes discarded.");
+    }
   }
+
+  const companyLoading = section === "company" && (companyQuery.isLoading || !companyForm);
 
   return (
     <>
@@ -123,18 +175,37 @@ function SettingsPage() {
           actions={
             section === "company" ? (
               <>
-                <Button type="button" size="sm" variant="outline" onClick={resetCompanyForm}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={resetCompanyForm}
+                  disabled={companyLoading || saveMutation.isPending}
+                >
                   Cancel
                 </Button>
-                <Button type="button" size="sm" onClick={saveChanges}>
-                  Save changes
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={saveChanges}
+                  disabled={companyLoading || saveMutation.isPending}
+                >
+                  {saveMutation.isPending ? "Saving…" : "Save changes"}
                 </Button>
               </>
             ) : null
           }
         />
 
-        {section === "company" ? <CompanySettings form={companyForm} prefs={prefs} onChange={updateCompany} onPrefChange={setPrefs} /> : null}
+        {section === "company" ? (
+          companyLoading ? (
+            <SettingsCard title="Organization Details" description="Loading company settings…">
+              <p className="text-sm text-muted-foreground">Please wait.</p>
+            </SettingsCard>
+          ) : (
+            <CompanySettings form={companyForm!} onChange={updateCompany} />
+          )
+        ) : null}
         {section === "tickets-sla" ? <TicketsSlaSettings /> : null}
         {section === "ticket-categories" ? <TicketCategoriesSettings /> : null}
         {section === "notifications" ? <NotificationsSettings /> : null}
@@ -146,216 +217,267 @@ function SettingsPage() {
 
 function CompanySettings({
   form,
-  prefs,
   onChange,
-  onPrefChange,
 }: {
-  form: typeof defaultCompanyForm;
-  prefs: Record<string, boolean>;
-  onChange: <K extends keyof typeof defaultCompanyForm>(key: K, value: (typeof defaultCompanyForm)[K]) => void;
-  onPrefChange: Dispatch<SetStateAction<typeof prefs>>;
+  form: CompanySettings;
+  onChange: <K extends keyof CompanySettings>(key: K, value: CompanySettings[K]) => void;
 }) {
+  const logoPreview = form.logoUrl || MIRAKI_LOGO_SRC;
+  const faviconPreview = form.faviconUrl || undefined;
+
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="flex flex-col gap-5">
-        <SettingsCard title="Organization Details" description="Basic company information visible across the platform.">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <SettingsField label="Company name">
-              <Input value={form.companyName} onChange={(e) => onChange("companyName", e.target.value)} />
-            </SettingsField>
-            <SettingsField label="Support email">
-              <Input
-                type="email"
-                value={form.supportEmail}
-                onChange={(e) => onChange("supportEmail", e.target.value)}
-              />
-            </SettingsField>
-            <SettingsField label="Contact number">
-              <Input value={form.contactNumber} onChange={(e) => onChange("contactNumber", e.target.value)} />
-            </SettingsField>
-            <SettingsField label="Website">
-              <Input value={form.website} onChange={(e) => onChange("website", e.target.value)} />
-            </SettingsField>
-            <SettingsUploadBox label="Logo" previewSrc={MIRAKI_LOGO_SRC} />
-            <SettingsUploadBox label="Favicon" hint="Click to upload" />
-            <SettingsField label="Company address" className="sm:col-span-2">
-              <Textarea
-                rows={3}
-                value={form.address}
-                onChange={(e) => onChange("address", e.target.value)}
-              />
-            </SettingsField>
-            <SettingsField label="Timezone">
-              <Select value={form.timezone} onValueChange={(value) => onChange("timezone", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                  <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                  <SelectItem value="Europe/London">Greenwich Mean Time (GMT)</SelectItem>
-                  <SelectItem value="Asia/Kolkata">India Standard Time (IST)</SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsField>
-            <SettingsField label="Date format">
-              <Select value={form.dateFormat} onValueChange={(value) => onChange("dateFormat", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
-                  <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
-                  <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsField>
-          </div>
-        </SettingsCard>
-
-        <SettingsCard title="Regional Settings">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <SettingsField label="Language">
-              <Select value={form.language} onValueChange={(value) => onChange("language", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en-US">English (US)</SelectItem>
-                  <SelectItem value="en-GB">English (UK)</SelectItem>
-                  <SelectItem value="es-ES">Spanish</SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsField>
-            <SettingsField label="Currency">
-              <Select value={form.currency} onValueChange={(value) => onChange("currency", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD — US Dollar</SelectItem>
-                  <SelectItem value="EUR">EUR — Euro</SelectItem>
-                  <SelectItem value="GBP">GBP — British Pound</SelectItem>
-                  <SelectItem value="INR">INR — Indian Rupee</SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsField>
-            <SettingsField label="Number format">
-              <Select value={form.numberFormat} onValueChange={(value) => onChange("numberFormat", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1,234.56">1,234.56</SelectItem>
-                  <SelectItem value="1.234,56">1.234,56</SelectItem>
-                  <SelectItem value="1 234,56">1 234,56</SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsField>
-          </div>
-        </SettingsCard>
+    <SettingsCard title="Organization Details" description="Basic company information visible across the platform.">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SettingsField label="Company name">
+          <Input value={form.companyName} onChange={(e) => onChange("companyName", e.target.value)} />
+        </SettingsField>
+        <SettingsField label="Support email">
+          <Input
+            type="email"
+            value={form.supportEmail}
+            onChange={(e) => onChange("supportEmail", e.target.value)}
+          />
+        </SettingsField>
+        <SettingsField label="Contact number">
+          <Input value={form.contactNumber} onChange={(e) => onChange("contactNumber", e.target.value)} />
+        </SettingsField>
+        <SettingsField label="Website">
+          <Input value={form.website} onChange={(e) => onChange("website", e.target.value)} />
+        </SettingsField>
+        <SettingsUploadBox
+          label="Logo"
+          previewSrc={logoPreview}
+          context="settings-logo"
+          onUploaded={(url) => onChange("logoUrl", url)}
+        />
+        <SettingsUploadBox
+          label="Favicon"
+          hint="Click to upload"
+          previewSrc={faviconPreview}
+          context="settings-favicon"
+          accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg,image/webp"
+          onUploaded={(url) => onChange("faviconUrl", url)}
+        />
+        <SettingsField label="Company address" className="sm:col-span-2">
+          <Textarea rows={3} value={form.address} onChange={(e) => onChange("address", e.target.value)} />
+        </SettingsField>
+        <SettingsField label="Timezone">
+          <Select value={form.timezone} onValueChange={(value) => onChange("timezone", value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+              <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+              <SelectItem value="Europe/London">Greenwich Mean Time (GMT)</SelectItem>
+              <SelectItem value="Asia/Kolkata">India Standard Time (IST)</SelectItem>
+            </SelectContent>
+          </Select>
+        </SettingsField>
+        <SettingsField label="Date format">
+          <Select value={form.dateFormat} onValueChange={(value) => onChange("dateFormat", value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+              <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+              <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+            </SelectContent>
+          </Select>
+        </SettingsField>
       </div>
-
-      <div className="flex flex-col gap-5">
-        <SettingsCard title="System Preferences">
-          <div className="divide-y">
-            <SettingsToggleRow
-              title="Allow agent sign up"
-              description="Let support agents self-register with an invite link."
-              checked={prefs.agentSignup}
-              onCheckedChange={(checked) => onPrefChange((current) => ({ ...current, agentSignup: checked }))}
-            />
-            <SettingsToggleRow
-              title="Require email verification"
-              description="Users must verify email before accessing the portal."
-              checked={prefs.emailVerification}
-              onCheckedChange={(checked) => onPrefChange((current) => ({ ...current, emailVerification: checked }))}
-            />
-            <SettingsToggleRow
-              title="Enable time tracking"
-              description="Track hours logged against projects and tickets."
-              checked={prefs.timeTracking}
-              onCheckedChange={(checked) => onPrefChange((current) => ({ ...current, timeTracking: checked }))}
-            />
-            <SettingsToggleRow
-              title="Enable public ticket portal"
-              description="Allow clients to submit and track tickets online."
-              checked={prefs.publicPortal}
-              onCheckedChange={(checked) => onPrefChange((current) => ({ ...current, publicPortal: checked }))}
-            />
-            <SettingsToggleRow
-              title="Allow file attachments"
-              description="Clients and agents can attach files to tickets."
-              checked={prefs.attachments}
-              onCheckedChange={(checked) => onPrefChange((current) => ({ ...current, attachments: checked }))}
-            />
-            <SettingsToggleRow
-              title="Data export"
-              description="Allow admins to export ticket and customer data."
-              checked={prefs.dataExport}
-              onCheckedChange={(checked) => onPrefChange((current) => ({ ...current, dataExport: checked }))}
-            />
-            <SettingsToggleRow
-              title="Enable two-factor authentication"
-              description="Require 2FA for all admin and staff accounts."
-              checked={prefs.twoFactor}
-              onCheckedChange={(checked) => onPrefChange((current) => ({ ...current, twoFactor: checked }))}
-            />
-          </div>
-        </SettingsCard>
-
-        <section className="overflow-hidden rounded-md border border-destructive/30 bg-destructive/5 shadow-sm">
-          <div className="border-b border-destructive/20 px-5 py-4">
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="size-4" />
-              <h2 className="text-base font-semibold">Danger Zone</h2>
-            </div>
-            <p className="mt-1 text-sm text-subtle">
-              Irreversible actions that affect your entire organization.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-            <p className="text-sm text-muted-foreground">
-              Permanently delete your organization and all associated data.
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => toast.error("Account deletion is disabled in this demo.")}
-            >
-              Delete account
-            </Button>
-          </div>
-        </section>
-      </div>
-    </div>
+    </SettingsCard>
   );
 }
 
 function TicketsSlaSettings() {
+  const queryClient = useQueryClient();
+
+  const policiesQuery = useQuery({
+    queryKey: ["sla-settings"],
+    queryFn: fetchSlaSettings,
+  });
+
+  const [formRows, setFormRows] = useState<SlaFormRow[] | null>(null);
+
+  useEffect(() => {
+    if (policiesQuery.data) {
+      setFormRows(policiesToFormRows(policiesQuery.data));
+    }
+  }, [policiesQuery.data]);
+
+  useEffect(() => {
+    if (policiesQuery.isError) {
+      toast.error(getApiErrorMessage(policiesQuery.error, "Failed to load SLA settings"));
+    }
+  }, [policiesQuery.isError, policiesQuery.error]);
+
+  const saveMutation = useMutation({
+    mutationFn: updateSlaSettings,
+    onSuccess: (data) => {
+      queryClient.setQueryData(["sla-settings"], data);
+      queryClient.setQueryData(["sla-policies"], data);
+      setFormRows(policiesToFormRows(data));
+      toast.success("SLA settings saved.");
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error, "Failed to save SLA settings")),
+  });
+
+  function updateRow(priority: Priority, patch: Partial<Omit<SlaFormRow, "priority">>) {
+    setFormRows((current) =>
+      current?.map((row) => (row.priority === priority ? { ...row, ...patch } : row)) ?? current,
+    );
+  }
+
+  function resetForm() {
+    if (policiesQuery.data) {
+      setFormRows(policiesToFormRows(policiesQuery.data));
+      toast.message("Changes discarded.");
+    }
+  }
+
+  function saveChanges() {
+    if (!formRows) return;
+
+    const policies = [];
+    for (const row of formRows) {
+      const assignmentSlaMinutes = combineSlaMinutes(
+        Number(row.responseHours),
+        fromSlaMinuteOption(row.responseMinutes),
+      );
+      const resolutionSlaMinutes = combineSlaMinutes(
+        Number(row.resolutionHours),
+        fromSlaMinuteOption(row.resolutionMinutes),
+      );
+
+      if (assignmentSlaMinutes === null || resolutionSlaMinutes === null) {
+        toast.error(`${row.priority}: select a valid duration (at least 1 minute total).`);
+        return;
+      }
+
+      policies.push({
+        priority: row.priority,
+        assignmentSlaMinutes,
+        resolutionSlaMinutes,
+      });
+    }
+
+    saveMutation.mutate({ policies });
+  }
+
+  const loading = policiesQuery.isLoading || !formRows;
+
   return (
-    <SettingsCard title="Priority-based SLA targets" description="Response and resolution targets by priority level.">
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            {["Priority", "Response time", "Resolution time"].map((heading) => (
-              <TableHead key={heading}>{heading}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {PRIORITIES.map((priority) => (
-            <TableRow key={priority}>
-              <TableCell className="font-semibold">{priority}</TableCell>
-              <TableCell>{SLA_MATRIX[priority].response}</TableCell>
-              <TableCell>{SLA_MATRIX[priority].resolution}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <SettingsCard
+      title="Priority-based SLA targets"
+      description="Set response and resolution targets in hours and minutes, then save to apply for new SLA cycles."
+    >
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading SLA settings…</p>
+      ) : (
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                {["Priority", "Response time", "Resolution time"].map((heading) => (
+                  <TableHead key={heading}>{heading}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {formRows.map((row) => (
+                <TableRow key={row.priority}>
+                  <TableCell className="font-semibold">{row.priority}</TableCell>
+                  <TableCell>
+                    <SlaDurationFields
+                      hours={row.responseHours}
+                      minutes={row.responseMinutes}
+                      disabled={saveMutation.isPending}
+                      labelPrefix={`${row.priority} response`}
+                      onHoursChange={(value) => updateRow(row.priority, { responseHours: value })}
+                      onMinutesChange={(value) => updateRow(row.priority, { responseMinutes: value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <SlaDurationFields
+                      hours={row.resolutionHours}
+                      minutes={row.resolutionMinutes}
+                      disabled={saveMutation.isPending}
+                      labelPrefix={`${row.priority} resolution`}
+                      onHoursChange={(value) => updateRow(row.priority, { resolutionHours: value })}
+                      onMinutesChange={(value) => updateRow(row.priority, { resolutionMinutes: value })}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <div className="mt-5 flex justify-end gap-2 border-t border-border/60 pt-4">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={resetForm}
+              disabled={saveMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button type="button" size="sm" onClick={saveChanges} disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </>
+      )}
     </SettingsCard>
+  );
+}
+
+function SlaDurationFields({
+  hours,
+  minutes,
+  disabled,
+  labelPrefix,
+  onHoursChange,
+  onMinutesChange,
+}: {
+  hours: string;
+  minutes: string;
+  disabled: boolean;
+  labelPrefix: string;
+  onHoursChange: (value: string) => void;
+  onMinutesChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <Select value={hours} onValueChange={onHoursChange} disabled={disabled}>
+        <SelectTrigger className="h-8 w-[5.5rem]" aria-label={`${labelPrefix} hours`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {SLA_HOUR_OPTIONS.map((option) => (
+            <SelectItem key={option} value={String(option)}>
+              {option} {option === 1 ? "hr" : "hrs"}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={minutes} onValueChange={onMinutesChange} disabled={disabled}>
+        <SelectTrigger className="h-8 w-[5.5rem]" aria-label={`${labelPrefix} minutes`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {SLA_MINUTE_OPTIONS.map((option) => {
+            const value = toSlaMinuteOption(option);
+            return (
+              <SelectItem key={value} value={value}>
+                {value} mins
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
@@ -378,32 +500,116 @@ function TicketCategoriesSettings() {
 }
 
 function NotificationsSettings() {
-  const items = [
-    "New ticket",
-    "Ticket reply",
-    "Status change",
-    "Ticket assignment",
-    "Ticket resolution",
-    "SLA breach",
-  ];
+  const queryClient = useQueryClient();
+
+  const settingsQuery = useQuery({
+    queryKey: ["notification-settings"],
+    queryFn: fetchNotificationSettings,
+  });
+
+  const [form, setForm] = useState<NotificationSettings | null>(null);
+
+  useEffect(() => {
+    if (settingsQuery.data) {
+      setForm(settingsQuery.data);
+    }
+  }, [settingsQuery.data]);
+
+  useEffect(() => {
+    if (settingsQuery.isError) {
+      toast.error(getApiErrorMessage(settingsQuery.error, "Failed to load notification settings"));
+    }
+  }, [settingsQuery.isError, settingsQuery.error]);
+
+  const saveMutation = useMutation({
+    mutationFn: updateNotificationSettings,
+    onSuccess: (data) => {
+      queryClient.setQueryData(["notification-settings"], data);
+      setForm(data);
+      toast.success("Notification settings saved.");
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error, "Failed to save notification settings")),
+  });
+
+  function updateEvent(key: NotificationEventSetting["key"], email: boolean) {
+    setForm((current) =>
+      current
+        ? {
+            ...current,
+            events: current.events.map((event) => (event.key === key ? { ...event, email } : event)),
+          }
+        : current,
+    );
+  }
+
+  function resetForm() {
+    if (settingsQuery.data) {
+      setForm(settingsQuery.data);
+      toast.message("Changes discarded.");
+    }
+  }
+
+  function saveChanges() {
+    if (!form) return;
+    saveMutation.mutate({ events: form.events });
+  }
+
+  const loading = settingsQuery.isLoading || !form;
+  const delivery = form?.emailDelivery;
 
   return (
-    <SettingsCard title="Notification channels" description="Email delivery connects to a provider in production.">
-      <ul className="divide-y">
-        {items.map((name, index) => (
-          <li key={name} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-            <span className="text-sm font-medium">{name}</span>
-            <div className="flex items-center gap-6">
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                Email <Switch defaultChecked={index !== 5} />
-              </label>
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                In-app <Switch defaultChecked />
-              </label>
-            </div>
-          </li>
-        ))}
-      </ul>
+    <SettingsCard
+      title="Notification channels"
+      description="Configure which ticket events send email notifications."
+    >
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading notification settings…</p>
+      ) : (
+        <>
+          <Alert variant={delivery?.available ? "default" : "destructive"} className="mb-5">
+            {delivery?.available ? <Mail className="size-4" /> : <MailWarning className="size-4" />}
+            <AlertTitle className="flex items-center gap-2">
+              Email delivery
+              <Badge variant={delivery?.available ? "secondary" : "destructive"}>
+                {delivery?.available ? "Available" : "Unavailable"}
+              </Badge>
+            </AlertTitle>
+            <AlertDescription>{delivery?.message}</AlertDescription>
+          </Alert>
+
+          <ul className="divide-y">
+            {form.events.map((event) => (
+              <li key={event.key} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                <span className="text-sm font-medium">{event.label}</span>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  Email
+                  <Switch
+                    checked={event.email}
+                    disabled={saveMutation.isPending}
+                    onCheckedChange={(checked) => updateEvent(event.key, checked)}
+                  />
+                </label>
+              </li>
+            ))}
+          </ul>
+
+          {!delivery?.available ? (
+            <p className="mt-4 text-xs text-muted-foreground">
+              Email delivery is not active yet. You can still save preferences; notifications will send once email is
+              configured.
+            </p>
+          ) : null}
+
+          <div className="mt-5 flex justify-end gap-2 border-t border-border/60 pt-4">
+            <Button type="button" size="sm" variant="outline" onClick={resetForm} disabled={saveMutation.isPending}>
+              Cancel
+            </Button>
+            <Button type="button" size="sm" onClick={saveChanges} disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </>
+      )}
     </SettingsCard>
   );
 }

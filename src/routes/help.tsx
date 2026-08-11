@@ -21,7 +21,7 @@ export const Route = createFileRoute("/help")({
 });
 
 const faqs = [
-  ["How do I raise a support ticket?", "Open Create Ticket, describe the issue, choose a category and priority, attach any evidence and submit. You'll receive a unique ticket number such as TKT-2026-000125."],
+  ["How do I raise a support ticket?", "Open Create Ticket, describe the issue, choose a category and priority, attach any evidence and submit. You'll receive a unique ticket number such as TKT-125."],
   ["What do the SLA states mean?", "On Track means the resolution deadline is comfortably ahead, Approaching means under four hours remain and Breached means the deadline has passed."],
   ["Who can see internal notes?", "Internal notes are visible only to support agents and administrators. Clients never see them in the ticket conversation."],
   ["How do I reopen a resolved ticket?", "Open the ticket and choose Reopen. The ticket returns to Open and the assigned agent is notified."],

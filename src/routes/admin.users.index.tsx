@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Eye, Pencil, Plus, Users } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { RequireRole } from "@/components/guard";
+import { DeleteEntityDialog } from "@/components/delete-entity-dialog";
 import {
   DataTableActions,
   DataTableHead,
@@ -31,7 +32,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { getApiErrorMessage } from "@/lib/api";
 import {
-  exportInternalUsers,
+  deleteInternalUser,
   fetchInternalUsers,
   resendInternalUserInvitation,
   resetInternalUserPassword,
@@ -71,6 +72,7 @@ function UsersPage() {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const { applied: filters, draft, patchDraft, apply, clear, open, setOpen, activeCount } = useListingFilters(FILTER_DEFAULTS);
@@ -142,6 +144,16 @@ function UsersPage() {
     onError: (err) => toast.error(getApiErrorMessage(err, "Failed to reset password")),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteInternalUser(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["internal-users"] });
+      setDeleteTarget(null);
+      toast.success("User deleted.");
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, "Failed to delete user")),
+  });
+
   const items = data?.items ?? [];
   const meta = data?.meta;
 
@@ -150,25 +162,6 @@ function UsersPage() {
     setDebouncedSearch("");
     clear();
     setPage(1);
-  };
-
-  const exportUsers = async () => {
-    try {
-      const blob = await exportInternalUsers({
-        ...(debouncedSearch && { search: debouncedSearch }),
-        ...(filters.status !== ANY && { status: filters.status as AccountStatus }),
-        ...(filters.role !== ANY && { role: filters.role as Role }),
-        ...(filters.departmentId !== ANY && { departmentId: filters.departmentId }),
-      });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = "users.csv";
-      anchor.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      toast.error(getApiErrorMessage(err, "Export failed"));
-    }
   };
 
   return (
@@ -184,7 +177,6 @@ function UsersPage() {
         activeFilterCount={activeCount}
         onFilterApply={apply}
         onFilterClear={clearFilters}
-        onExport={exportUsers}
         primaryAction={
           <Button size="sm" className="rounded-md" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" /> New user
@@ -289,6 +281,18 @@ function UsersPage() {
                         <DropdownMenuItem onClick={() => resetMutation.mutate(user.id ?? user._id!)}>
                           Reset password
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() =>
+                            setDeleteTarget({
+                              id: user.id ?? user._id!,
+                              name: user.name ?? `${user.firstName} ${user.lastName}`,
+                            })
+                          }
+                        >
+                          <Trash2 className="size-4" /> Delete
+                        </DropdownMenuItem>
                       </DataTableRowMenu>
                     </DataTableActions>
                   </TableCell>
@@ -327,6 +331,23 @@ function UsersPage() {
           onSaved={() => queryClient.invalidateQueries({ queryKey: ["internal-users"] })}
         />
       ) : null}
+
+      <DeleteEntityDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete user?"
+        description={
+          deleteTarget
+            ? `${deleteTarget.name} will be permanently removed. Users with assigned tickets cannot be deleted.`
+            : ""
+        }
+        isPending={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+      />
     </ListingPage>
   );
 }

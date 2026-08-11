@@ -40,6 +40,53 @@ const priorityStyles: Record<string, string> = {
   Critical: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
+/** Solid fills for charts — aligned with StatusBadge semantic colors. */
+const statusChartColors: Record<string, string> = {
+  New: "var(--color-info)",
+  Assigned: "var(--color-primary)",
+  "In Progress": "var(--color-warning)",
+  Resolved: "var(--color-success)",
+  Closed: "var(--color-muted-foreground)",
+  Reopened: "var(--color-info)",
+  Cancelled: "var(--color-muted-foreground)",
+};
+
+/** Solid fills for charts — aligned with PriorityBadge semantic colors. */
+const priorityChartColors: Record<string, string> = {
+  P1: "var(--color-destructive)",
+  P2: "var(--color-destructive)",
+  P3: "var(--color-warning)",
+  P4: "var(--color-info)",
+  Low: "var(--color-info)",
+  Medium: "var(--color-warning)",
+  High: "var(--color-destructive)",
+  Critical: "var(--color-destructive)",
+};
+
+const categoryChartPalette = [
+  "var(--color-primary)",
+  "var(--color-info)",
+  "var(--color-success)",
+  "var(--color-warning)",
+  "var(--color-destructive)",
+] as const;
+
+export function statusChartColor(status: string) {
+  return statusChartColors[status] ?? "var(--color-muted-foreground)";
+}
+
+export function priorityChartColor(priority: string) {
+  return priorityChartColors[priority] ?? "var(--color-muted-foreground)";
+}
+
+export function categoryChartColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return categoryChartPalette[hash % categoryChartPalette.length];
+}
+
 export function PriorityBadge({ priority }: { priority: string }) {
   return (
     <span className={cn(badgeBase, priorityStyles[priority] ?? "bg-muted text-muted-foreground border-border")}>

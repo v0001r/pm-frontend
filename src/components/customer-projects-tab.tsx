@@ -134,7 +134,6 @@ export function CustomerProjectsTab({ customerId }: { customerId: string }) {
           activeFilterCount={activeCount}
           onFilterApply={apply}
           onFilterClear={clearFilters}
-          onExport={() => toast.info("Export coming soon.")}
           primaryAction={
             canManage ? (
               <Button size="sm" className="rounded-md" onClick={() => setCreateOpen(true)}>

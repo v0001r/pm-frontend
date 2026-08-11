@@ -448,43 +448,6 @@ var Circle = createLucideIcon("circle", [["circle", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
-var ClipboardList = createLucideIcon("clipboard-list", [
-	["rect", {
-		width: "8",
-		height: "4",
-		x: "8",
-		y: "2",
-		rx: "1",
-		ry: "1",
-		key: "tgr4d6"
-	}],
-	["path", {
-		d: "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2",
-		key: "116196"
-	}],
-	["path", {
-		d: "M12 11h4",
-		key: "1jrz19"
-	}],
-	["path", {
-		d: "M12 16h4",
-		key: "n85exb"
-	}],
-	["path", {
-		d: "M8 11h.01",
-		key: "1dfujw"
-	}],
-	["path", {
-		d: "M8 16h.01",
-		key: "18s6g9"
-	}]
-]);
-/**
-* @license lucide-react v0.575.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
 var Clock3 = createLucideIcon("clock-3", [["circle", {
 	cx: "12",
 	cy: "12",
@@ -620,34 +583,6 @@ var Eye = createLucideIcon("eye", [["path", {
 	r: "3",
 	key: "1v7zrd"
 }]]);
-/**
-* @license lucide-react v0.575.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
-var FileText = createLucideIcon("file-text", [
-	["path", {
-		d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
-		key: "1oefj6"
-	}],
-	["path", {
-		d: "M14 2v5a1 1 0 0 0 1 1h5",
-		key: "wfsgrz"
-	}],
-	["path", {
-		d: "M10 9H8",
-		key: "b1mrlr"
-	}],
-	["path", {
-		d: "M16 13H8",
-		key: "t4e002"
-	}],
-	["path", {
-		d: "M16 17H8",
-		key: "z1uh3a"
-	}]
-]);
 /**
 * @license lucide-react v0.575.0 - ISC
 *
@@ -847,29 +782,6 @@ var LifeBuoy = createLucideIcon("life-buoy", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
-var Link2 = createLucideIcon("link-2", [
-	["path", {
-		d: "M9 17H7A5 5 0 0 1 7 7h2",
-		key: "8i5ue5"
-	}],
-	["path", {
-		d: "M15 7h2a5 5 0 1 1 0 10h-2",
-		key: "1b9ql8"
-	}],
-	["line", {
-		x1: "8",
-		x2: "16",
-		y1: "12",
-		y2: "12",
-		key: "1jonct"
-	}]
-]);
-/**
-* @license lucide-react v0.575.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
 var ListFilter = createLucideIcon("list-filter", [
 	["path", {
 		d: "M2 5h20",
@@ -950,6 +862,30 @@ var MailCheck = createLucideIcon("mail-check", [
 	["path", {
 		d: "m16 19 2 2 4-4",
 		key: "1b14m6"
+	}]
+]);
+/**
+* @license lucide-react v0.575.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var MailWarning = createLucideIcon("mail-warning", [
+	["path", {
+		d: "M22 10.5V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h12.5",
+		key: "e61zoh"
+	}],
+	["path", {
+		d: "m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7",
+		key: "1ocrg3"
+	}],
+	["path", {
+		d: "M20 14v4",
+		key: "1hm744"
+	}],
+	["path", {
+		d: "M20 22v.01",
+		key: "12bgn6"
 	}]
 ]);
 /**
@@ -1370,26 +1306,6 @@ var TriangleAlert = createLucideIcon("triangle-alert", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
-var Upload = createLucideIcon("upload", [
-	["path", {
-		d: "M12 3v12",
-		key: "1x0j5s"
-	}],
-	["path", {
-		d: "m17 8-5-5-5 5",
-		key: "7q97r8"
-	}],
-	["path", {
-		d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4",
-		key: "ih7n3h"
-	}]
-]);
-/**
-* @license lucide-react v0.575.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
 var UserCheck = createLucideIcon("user-check", [
 	["path", {
 		d: "m16 11 2 2 4-4",
@@ -1596,4 +1512,4 @@ var X = createLucideIcon("x", [["path", {
 	key: "d8bk6v"
 }]]);
 //#endregion
-export { Clock3 as $, Menu as A, Layers as B, Pencil as C, Moon as D, PanelLeftClose as E, LoaderCircle as F, FolderKanban as G, Info as H, ListFilter as I, EyeOff as J, FileText as K, Link2 as L, MailCheck as M, LogOut as N, Minus as O, Lock as P, Clock as Q, LifeBuoy as R, Plus as S, PanelLeftOpen as T, Inbox as U, KeyRound as V, Globe as W, EllipsisVertical as X, Ellipsis as Y, Download as Z, ShieldCheck as _, ArrowLeft as _t, UserRound as a, ChevronsUpDown as at, Send as b, AlarmClock as bt, UserCheck as c, ChevronUp as ct, Trash2 as d, ChevronDown as dt, ClipboardList as et, Ticket as f, Check as ft, SlidersHorizontal as g, ArrowUpRight as gt, Star as h, Bell as ht, UserX as i, CircleCheck as it, Mail as j, MessageSquare as k, Upload as l, ChevronRight as lt, StickyNote as m, Building2 as mt, Users as n, CirclePause as nt, UserPlus as o, ChevronsRight as ot, Sun as p, ChartColumn as pt, Eye as q, User as r, CircleDot as rt, UserCog as s, ChevronsLeft as st, X as t, Circle as tt, TriangleAlert as u, ChevronLeft as ut, ShieldAlert as v, ArrowDownRight as vt, Paperclip as w, Search as x, Activity as xt, Settings as y, Archive as yt, LayoutDashboard as z };
+export { CirclePause as $, Mail as A, KeyRound as B, Paperclip as C, Minus as D, Moon as E, LoaderCircle as F, Eye as G, Inbox as H, ListFilter as I, EllipsisVertical as J, EyeOff as K, LifeBuoy as L, MailCheck as M, LogOut as N, MessageSquare as O, Lock as P, Circle as Q, LayoutDashboard as R, Pencil as S, PanelLeftClose as T, Globe as U, Info as V, FolderKanban as W, Clock as X, Download as Y, Clock3 as Z, ShieldAlert as _, AlarmClock as _t, UserRound as a, ChevronUp as at, Search as b, UserCheck as c, ChevronDown as ct, Ticket as d, Building2 as dt, CircleDot as et, Sun as f, Bell as ft, ShieldCheck as g, Archive as gt, SlidersHorizontal as h, ArrowDownRight as ht, UserX as i, ChevronsLeft as it, MailWarning as j, Menu as k, TriangleAlert as l, Check as lt, Star as m, ArrowLeft as mt, Users as n, ChevronsUpDown as nt, UserPlus as o, ChevronRight as ot, StickyNote as p, ArrowUpRight as pt, Ellipsis as q, User as r, ChevronsRight as rt, UserCog as s, ChevronLeft as st, X as t, CircleCheck as tt, Trash2 as u, ChartColumn as ut, Settings as v, Activity as vt, PanelLeftOpen as w, Plus as x, Send as y, Layers as z };

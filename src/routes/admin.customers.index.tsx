@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Eye, Pencil, Plus, Users } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { RequireRole } from "@/components/guard";
+import { DeleteEntityDialog } from "@/components/delete-entity-dialog";
 import {
   DataTableActions,
   DataTableHead,
@@ -28,9 +29,10 @@ import {
 import { EmptyState, StatusBadge, TableSkeleton } from "@/components/primitives";
 import { CustomerFormSheet } from "@/components/customer-form-sheet";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { getApiErrorMessage } from "@/lib/api";
-import { fetchCustomers } from "@/lib/customers";
+import { isAdmin, useAuth } from "@/lib/auth";
+import { deleteCustomer, fetchCustomers } from "@/lib/customers";
 import { formatDate } from "@/lib/store";
 import type { AccountStatus, InvitationStatus } from "@/lib/types";
 
@@ -62,8 +64,12 @@ const TABLE_COLUMNS = ["Customer ID", "Company", "Primary contact", "Status", "I
 function CustomersPage() {
   const navigate = useNavigate();
   const routeSearch = Route.useSearch();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const canDelete = isAdmin(user?.role);
   const [createOpen, setCreateOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const { applied: filters, draft, patchDraft, apply, clear, open, setOpen, activeCount } = useListingFilters(FILTER_DEFAULTS);
@@ -106,6 +112,16 @@ function CustomersPage() {
     if (isError) toast.error(getApiErrorMessage(error, "Failed to load customers"));
   }, [isError, error]);
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteCustomer(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      setDeleteTarget(null);
+      toast.success("Customer deleted.");
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, "Failed to delete customer")),
+  });
+
   const items = data?.items ?? [];
   const meta = data?.meta;
   const hasFilters = debouncedSearch || filters.status !== ANY || filters.invitationStatus !== ANY;
@@ -130,7 +146,6 @@ function CustomersPage() {
         activeFilterCount={activeCount}
         onFilterApply={apply}
         onFilterClear={clearFilters}
-        onExport={() => toast.info("Export coming soon.")}
         primaryAction={
           <Button size="sm" className="rounded-md" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" /> New customer
@@ -216,6 +231,17 @@ function CustomersPage() {
                         <DropdownMenuItem onClick={() => setEditId(customer._id)}>
                           <Pencil className="size-4" /> Edit
                         </DropdownMenuItem>
+                        {canDelete ? (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteTarget({ id: customer._id, name: customer.companyName })}
+                            >
+                              <Trash2 className="size-4" /> Delete
+                            </DropdownMenuItem>
+                          </>
+                        ) : null}
                       </DataTableRowMenu>
                     </DataTableActions>
                   </TableCell>
@@ -248,6 +274,23 @@ function CustomersPage() {
           customerId={editId}
         />
       ) : null}
+
+      <DeleteEntityDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete customer?"
+        description={
+          deleteTarget
+            ? `${deleteTarget.name} will be permanently removed. Customers with projects or tickets cannot be deleted.`
+            : ""
+        }
+        isPending={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+      />
     </ListingPage>
   );
 }

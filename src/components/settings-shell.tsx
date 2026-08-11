@@ -1,6 +1,10 @@
 import type { LucideIcon } from "lucide-react";
-import { Bell, Building2, Globe, Layers, Ticket, Users } from "lucide-react";
+import { Bell, Building2, Globe, Layers, Loader2, Ticket, Users } from "lucide-react";
+import { useRef, useState, type ChangeEvent } from "react";
+import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { getApiErrorMessage } from "@/lib/api";
+import { uploadFile, type UploadContext } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
 
 export type SettingsSection =
@@ -68,7 +72,7 @@ export const settingsSectionMeta: Record<
   },
   notifications: {
     title: "Notifications",
-    description: "Control email and in-app alerts for your workspace.",
+    description: "Configure email notifications for ticket events.",
     breadcrumb: "Notifications",
   },
 };
@@ -185,24 +189,64 @@ export function SettingsUploadBox({
   label,
   hint = "Click to upload",
   previewSrc,
+  accept = "image/*",
+  context,
+  onUploaded,
+  disabled = false,
 }: {
   label: string;
   hint?: string;
   previewSrc?: string;
+  accept?: string;
+  context: UploadContext;
+  onUploaded: (url: string) => void;
+  disabled?: boolean;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const uploaded = await uploadFile(file, context);
+      onUploaded(uploaded.url);
+      toast.success(`${label} uploaded.`);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, `Failed to upload ${label.toLowerCase()}`));
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <div className="grid gap-1.5">
       <span className="text-sm font-medium text-foreground">{label}</span>
-      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:bg-muted/40">
+      <label
+        className={cn(
+          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:bg-muted/40",
+          (disabled || uploading) && "pointer-events-none opacity-60",
+        )}
+      >
         {previewSrc ? (
           <img src={previewSrc} alt="" className="max-h-10 object-contain" />
         ) : (
           <span className="grid size-10 place-items-center rounded-md bg-primary/10 text-primary">
-            <Globe className="size-5" />
+            {uploading ? <Loader2 className="size-5 animate-spin" /> : <Globe className="size-5" />}
           </span>
         )}
-        <span className="text-xs text-muted-foreground">{hint}</span>
-        <input type="file" className="sr-only" accept="image/*" />
+        <span className="text-xs text-muted-foreground">{uploading ? "Uploading…" : hint}</span>
+        <input
+          ref={inputRef}
+          type="file"
+          className="sr-only"
+          accept={accept}
+          disabled={disabled || uploading}
+          onChange={handleChange}
+        />
       </label>
     </div>
   );

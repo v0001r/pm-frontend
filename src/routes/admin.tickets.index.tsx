@@ -51,6 +51,11 @@ interface TicketSearch {
   client?: string;
   agent?: string;
   projectId?: string;
+  category?: string;
+  tag?: string;
+  customerId?: string;
+  createdFrom?: string;
+  createdTo?: string;
   action?: "create";
 }
 
@@ -63,6 +68,11 @@ export const Route = createFileRoute("/admin/tickets/")({
     client: typeof search["client"] === "string" ? search["client"] : undefined,
     agent: typeof search["agent"] === "string" ? search["agent"] : undefined,
     projectId: typeof search["projectId"] === "string" ? search["projectId"] : undefined,
+    category: typeof search["category"] === "string" ? search["category"] : undefined,
+    tag: typeof search["tag"] === "string" ? search["tag"] : undefined,
+    customerId: typeof search["customerId"] === "string" ? search["customerId"] : undefined,
+    createdFrom: typeof search["createdFrom"] === "string" ? search["createdFrom"] : undefined,
+    createdTo: typeof search["createdTo"] === "string" ? search["createdTo"] : undefined,
     action: search["action"] === "create" ? "create" : undefined,
   }),
   head: () => ({
@@ -117,6 +127,7 @@ function TicketsPage() {
       client: initial.client ?? ANY,
       agent: initial.agent ?? ANY,
       sla: initial.sla ?? ANY,
+      category: initial.category ?? ANY,
     },
   );
   const [page, setPage] = useState(1);
@@ -164,9 +175,14 @@ function TicketsPage() {
         limit,
         ...(debouncedQ && { search: debouncedQ }),
         ...(initial.projectId && { projectId: initial.projectId }),
+        ...(initial.customerId && { customerId: initial.customerId }),
+        ...(initial.createdFrom && { createdFrom: initial.createdFrom }),
+        ...(initial.createdTo && { createdTo: initial.createdTo }),
+        ...(initial.tag && { tag: initial.tag }),
         ...(filters.status !== ANY && { status: filters.status as TicketStatus }),
         ...(filters.priority !== ANY && { priority: filters.priority as Priority }),
         ...(filters.category !== ANY && { categoryId: filters.category }),
+        ...(initial.category && filters.category === ANY && { categoryId: initial.category }),
         ...(filters.client !== ANY && { clientId: filters.client }),
         ...(filters.agent === "unassigned" ? { unassigned: true } : filters.agent !== ANY ? { assignedTo: filters.agent } : {}),
         ...sortParams,
@@ -207,34 +223,6 @@ function TicketsPage() {
     setPage(1);
   };
 
-  const exportCsv = () => {
-    const header = "Ticket,Subject,Client,Project,Category,Priority,Status,Agent,Created,Due\n";
-    const body = rows
-      .map((ticket) => {
-        const due = getTicketSlaDueAt(ticket);
-        return [
-          ticket.number,
-          `"${ticket.subject}"`,
-          getTicketUserLabel(ticket.clientId),
-          getTicketProjectLabel(ticket),
-          getTicketCategoryLabel(ticket),
-          ticket.priority,
-          ticket.status,
-          getTicketUserLabel(ticket.assignedTo),
-          formatDate(ticket.createdAt),
-          due ? formatDate(due) : "",
-        ].join(",");
-      })
-      .join("\n");
-    const url = URL.createObjectURL(new Blob([header + body], { type: "text/csv" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "tickets.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success(`Exported ${rows.length} tickets to CSV.`);
-  };
-
   const loading = ticketsQuery.isLoading || ticketsQuery.isFetching;
 
   return (
@@ -250,7 +238,6 @@ function TicketsPage() {
         activeFilterCount={activeCount}
         onFilterApply={apply}
         onFilterClear={clearFilters}
-        onExport={exportCsv}
         primaryAction={
           <Button size="sm" className="rounded-md" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" /> New ticket
@@ -312,7 +299,6 @@ function TicketsPage() {
           title="No tickets match these filters"
           description="Try a different search term, or reset the filters to see the full queue."
           action={<Button size="sm" onClick={clearFilters}>Reset filters</Button>}
-          secondaryAction={<Button size="sm" variant="outline" onClick={exportCsv}>Export current view</Button>}
         />
       ) : (
         <>

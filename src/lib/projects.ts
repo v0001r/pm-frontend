@@ -40,6 +40,11 @@ export async function updateProject(id: string, payload: UpdateProjectPayload) {
   return data.data;
 }
 
+export async function deleteProject(id: string) {
+  const { data } = await api.delete<ApiResponse<{ message: string }>>(`/projects/${id}`);
+  return data.data;
+}
+
 export async function fetchProjectMembers(
   projectId: string,
   params: { page?: number; limit?: number; search?: string } = {},

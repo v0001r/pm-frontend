@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -6,10 +6,7 @@ import {
   Activity,
   ArrowLeft,
   ChevronDown,
-  ClipboardList,
   Clock,
-  FileText,
-  Link2,
   ListFilter,
   Lock,
   MessageSquare,
@@ -47,10 +44,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState, PriorityBadge, SlaBadge, StatusBadge, UserAvatar } from "@/components/primitives";
+import { FileUploadField } from "@/components/file-upload-field";
 import { getApiErrorMessage } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { fetchCategories } from "@/lib/categories";
 import { formatDate } from "@/lib/store";
 import { fetchEmployees } from "@/lib/users";
+import { fetchSlaPolicies, findSlaPolicyForPriority, slaTargetsFromPolicy } from "@/lib/sla";
 import {
   activityDescription,
   fetchTicket,
@@ -63,15 +63,17 @@ import {
   getTicketSlaState,
   getTicketUserId,
   getTicketUserLabel,
+  mapSlaStatus,
+  mergeTicketHistory,
   postTicketMessage,
   transitionTicket,
   updateTicket,
 } from "@/lib/tickets";
-import { PRIORITIES, SLA_MATRIX, SETTABLE_STATUSES, fullName, type Priority, type TicketStatus, type TicketUserRef } from "@/lib/types";
-import { useAuth } from "@/lib/auth";
+import { PRIORITIES, SETTABLE_STATUSES, fullName, type Priority, type TicketSlaSummary, type TicketStatus, type TicketUserRef } from "@/lib/types";
+import type { UploadedFileRef } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
 
-type WorkspaceTab = "conversation" | "history" | "linked" | "tasks" | "files" | "notes" | "activities";
+type WorkspaceTab = "conversation" | "history" | "notes" | "activities";
 
 export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "admin" | "client" }) {
   const { user } = useAuth();
@@ -80,7 +82,7 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
   const [draft, setDraft] = useState("");
   const [internal, setInternal] = useState(false);
   const [closeComment, setCloseComment] = useState("");
-  const [files, setFiles] = useState<{ name: string; size: string }[]>([]);
+  const [files, setFiles] = useState<UploadedFileRef[]>([]);
   const [messageSort, setMessageSort] = useState<"asc" | "desc">("asc");
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [manageOpen, setManageOpen] = useState(true);
@@ -120,6 +122,11 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
     enabled: mode === "admin",
   });
 
+  const slaPoliciesQuery = useQuery({
+    queryKey: ["sla-policies"],
+    queryFn: fetchSlaPolicies,
+  });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
     queryClient.invalidateQueries({ queryKey: ["ticket-messages", ticketId] });
@@ -130,7 +137,7 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
   };
 
   const messageMutation = useMutation({
-    mutationFn: () => postTicketMessage(ticketId, draft.trim(), internal),
+    mutationFn: () => postTicketMessage(ticketId, draft.trim(), internal, files),
     onSuccess: () => {
       setDraft("");
       setFiles([]);
@@ -161,6 +168,10 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
   };
 
   const runTransition = (payload: Parameters<typeof transitionTicket>[1], description: string) => {
+    if (ticketQuery.data?.status === "Cancelled") {
+      toast.error("Cancelled tickets cannot be changed to another status.");
+      return;
+    }
     transitionMutation.mutate(payload, { onSuccess: () => toast.success(description) });
   };
 
@@ -210,27 +221,22 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
     return messageSort === "asc" ? diff : -diff;
   });
   const events = eventsQuery.data ?? [];
+  const historyEntries = useMemo(() => mergeTicketHistory(events, ticket.sla), [events, ticket.sla]);
   const activities = activitiesQuery.data ?? [];
   const categories = categoriesQuery.data ?? [];
   const employees = employeesQuery.data ?? [];
   const backTo = mode === "admin" ? "/admin/tickets" : "/portal/tickets";
   const slaDue = getTicketSlaDueAt(ticket);
-  const slaTargets = SLA_MATRIX[ticket.priority] ?? SLA_MATRIX.P3;
+  const slaPolicy = findSlaPolicyForPriority(slaPoliciesQuery.data, ticket.priority);
+  const slaTargets = slaPolicy ? slaTargetsFromPolicy(slaPolicy) : { response: "—", resolution: "—" };
   const busy = messageMutation.isPending || updateMutation.isPending || transitionMutation.isPending;
+  const isCancelled = ticket.status === "Cancelled";
   const tags = ticket.tags ?? [];
   const internalNotes = messages.filter((m) => m.isInternal).length;
-
-  const attach = () => {
-    const n = files.length + 1;
-    setFiles([...files, { name: `attachment-${n}.png`, size: `${180 + n * 42} KB` }]);
-  };
 
   const workspaceTabs: { id: WorkspaceTab; label: string; icon: typeof MessageSquare; count?: number }[] = [
     { id: "conversation", label: "Conversation", icon: MessageSquare },
     { id: "history", label: "History", icon: Clock },
-    { id: "linked", label: "Linked tickets", icon: Link2 },
-    { id: "tasks", label: "Tasks", icon: ClipboardList, count: 0 },
-    { id: "files", label: "Files", icon: FileText, count: 0 },
     { id: "notes", label: "Notes", icon: StickyNote, count: internalNotes },
     { id: "activities", label: "Activities", icon: Activity },
   ];
@@ -282,7 +288,7 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
             </Button>
             {mode === "admin" ? (
               <>
-                {!["Resolved", "Closed"].includes(ticket.status) && (
+                {!["Resolved", "Closed", "Cancelled"].includes(ticket.status) && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -293,7 +299,17 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                     Mark resolved
                   </Button>
                 )}
-                {ticket.status !== "Closed" ? (
+                {ticket.status === "Closed" ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-md"
+                    disabled={busy}
+                    onClick={() => runTransition({ status: "Reopened" }, "Ticket reopened")}
+                  >
+                    Reopen ticket
+                  </Button>
+                ) : !isCancelled ? (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button size="sm" className="rounded-md" disabled={busy}>
@@ -327,17 +343,7 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-md"
-                    disabled={busy}
-                    onClick={() => runTransition({ status: "Reopened" }, "Ticket reopened")}
-                  >
-                    Reopen ticket
-                  </Button>
-                )}
+                ) : null}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="icon" className="rounded-md" disabled={busy}>
@@ -501,16 +507,30 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                           <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap text-foreground">{message.body}</p>
                           {(message.attachments ?? []).length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
-                              {(message.attachments ?? []).map((a) => (
-                                <span
-                                  key={a.name}
-                                  className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs"
-                                >
-                                  <Paperclip className="size-3" />
-                                  {a.name}
-                                  <span className="text-muted-foreground">{a.size}</span>
-                                </span>
-                              ))}
+                              {(message.attachments ?? []).map((a) =>
+                                a.url ? (
+                                  <a
+                                    key={a.key ?? a.name}
+                                    href={a.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs hover:bg-muted/50"
+                                  >
+                                    <Paperclip className="size-3" />
+                                    {a.name}
+                                    <span className="text-muted-foreground">{a.size}</span>
+                                  </a>
+                                ) : (
+                                  <span
+                                    key={a.name}
+                                    className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs"
+                                  >
+                                    <Paperclip className="size-3" />
+                                    {a.name}
+                                    <span className="text-muted-foreground">{a.size}</span>
+                                  </span>
+                                ),
+                              )}
                             </div>
                           )}
                         </article>
@@ -543,31 +563,14 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                         className="border-border bg-card"
                         placeholder={internal ? "Visible to support staff only…" : "Write your reply…"}
                       />
-                      {files.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {files.map((f, i) => (
-                            <span
-                              key={f.name}
-                              className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs"
-                            >
-                              <Paperclip className="size-3" />
-                              {f.name}
-                              <span className="text-muted-foreground">{f.size}</span>
-                              <button
-                                type="button"
-                                onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                                aria-label="Remove attachment"
-                              >
-                                <X className="size-3" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="mt-3 flex items-center justify-between">
-                        <Button variant="outline" size="sm" className="rounded-md" onClick={attach}>
-                          <Paperclip className="size-4" /> Attach file
-                        </Button>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                        <FileUploadField
+                          context="ticket-attachment"
+                          ticketId={ticketId}
+                          files={files}
+                          onChange={setFiles}
+                          variant="button"
+                        />
                         <Button
                           size="sm"
                           className="rounded-md"
@@ -582,22 +585,22 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                 )}
               </WorkspaceCard>
 
-              <TicketHistorySection events={events} loading={eventsQuery.isLoading} />
+              <TicketHistorySection
+                entries={historyEntries}
+                sla={ticket.sla}
+                slaTargets={slaTargets}
+                loading={eventsQuery.isLoading}
+              />
             </>
           )}
 
-          {activeTab === "history" && <TicketHistorySection events={events} loading={eventsQuery.isLoading} />}
-
-          {activeTab === "linked" && (
-            <PlaceholderTab title="Linked tickets" description="Related and duplicate tickets will appear here." />
-          )}
-
-          {activeTab === "tasks" && (
-            <PlaceholderTab title="Tasks" description="Sub-tasks and checklists for this ticket will appear here." />
-          )}
-
-          {activeTab === "files" && (
-            <PlaceholderTab title="Files" description="Attachments uploaded to this ticket will appear here." />
+          {activeTab === "history" && (
+            <TicketHistorySection
+              entries={historyEntries}
+              sla={ticket.sla}
+              slaTargets={slaTargets}
+              loading={eventsQuery.isLoading}
+            />
           )}
 
           {activeTab === "notes" && (
@@ -712,7 +715,11 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                 <CollapsibleContent>
                   <div className="grid gap-4 border-t border-border px-5 py-4">
                     <ManageField label="Status">
-                      {ticket.status === "Assigned" ? (
+                      {isCancelled ? (
+                        <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3">
+                          <StatusBadge status="Cancelled" />
+                        </div>
+                      ) : ticket.status === "Assigned" ? (
                         <div className="grid gap-2">
                           <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3">
                             <StatusBadge status="Assigned" />
@@ -885,16 +892,50 @@ function CardHeader({ title, count }: { title: string; count?: number }) {
   );
 }
 
-function TicketHistorySection({ events, loading }: { events: { _id: string; description: string; createdAt: string; actorId: TicketUserRef | string }[]; loading: boolean }) {
+function TicketHistorySection({
+  entries,
+  sla,
+  slaTargets,
+  loading,
+}: {
+  entries: ReturnType<typeof mergeTicketHistory>;
+  sla?: TicketSlaSummary | null;
+  slaTargets: { response: string; resolution: string };
+  loading: boolean;
+}) {
   return (
     <WorkspaceCard>
-      <CardHeader title="Ticket history" count={events.length} />
+      <CardHeader title="Ticket history" count={entries.length} />
+      {sla ? (
+        <div className="border-b border-border px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Current SLA · Cycle {sla.cycleNumber}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Response target {slaTargets.response} · Resolution target {slaTargets.resolution}
+              </p>
+            </div>
+          </div>
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            <SlaHistoryMetric
+              label="Assignment SLA"
+              dueAt={sla.assignmentSlaDueAt}
+              status={sla.assignmentSlaStatus}
+            />
+            <SlaHistoryMetric
+              label="Resolution SLA"
+              dueAt={sla.resolutionSlaDueAt}
+              status={sla.resolutionSlaStatus}
+            />
+          </dl>
+        </div>
+      ) : null}
       {loading ? (
         <p className="p-5 text-sm text-muted-foreground">Loading history…</p>
-      ) : events.length === 0 ? (
+      ) : entries.length === 0 ? (
         <EmptyState
           title="No history yet"
-          description="All updates and actions will appear here."
+          description="Ticket updates and SLA milestones will appear here."
           icon={Clock}
         />
       ) : (
@@ -902,23 +943,37 @@ function TicketHistorySection({ events, loading }: { events: { _id: string; desc
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">Date & time</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">Type</TableHead>
               <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">Action</TableHead>
               <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">Performed by</TableHead>
               <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">Details</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {events.map((event) => {
-              const actor = event.actorId as TicketUserRef;
-              return (
-                <TableRow key={event._id}>
-                  <TableCell className="text-muted-foreground">{formatDate(event.createdAt, true)}</TableCell>
-                  <TableCell className="font-medium">Update</TableCell>
-                  <TableCell>{getTicketUserLabel(actor)}</TableCell>
-                  <TableCell>{event.description}</TableCell>
-                </TableRow>
-              );
-            })}
+            {entries.map((entry) => (
+              <TableRow key={entry.id}>
+                <TableCell className="text-muted-foreground">{formatDate(entry.date, true)}</TableCell>
+                <TableCell>
+                  {entry.kind === "sla" ? (
+                    <Badge variant="outline" className="rounded-full text-[11px] font-semibold">
+                      SLA
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="rounded-full text-[11px] font-semibold">
+                      Update
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="font-medium">
+                  <span className="flex flex-wrap items-center gap-2">
+                    {entry.action}
+                    {entry.slaState ? <SlaBadge state={entry.slaState} /> : null}
+                  </span>
+                </TableCell>
+                <TableCell>{entry.performer}</TableCell>
+                <TableCell>{entry.details}</TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       )}
@@ -926,11 +981,23 @@ function TicketHistorySection({ events, loading }: { events: { _id: string; desc
   );
 }
 
-function PlaceholderTab({ title, description }: { title: string; description: string }) {
+function SlaHistoryMetric({
+  label,
+  dueAt,
+  status,
+}: {
+  label: string;
+  dueAt?: string | null;
+  status?: string;
+}) {
   return (
-    <WorkspaceCard>
-      <EmptyState title={title} description={description} />
-    </WorkspaceCard>
+    <div className="rounded-md border border-border/60 bg-muted/20 px-3 py-2.5">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <SlaBadge state={mapSlaStatus(status)} />
+        {dueAt ? <span className="text-sm text-foreground">Due {formatDate(dueAt, true)}</span> : null}
+      </div>
+    </div>
   );
 }
 

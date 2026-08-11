@@ -199,7 +199,7 @@ function makeTickets(): Ticket[] {
     const resolved = status === "Resolved" || status === "Closed";
     return {
       id: `t${i + 1}`,
-      number: `TKT-2026-${String(101 + i).padStart(6, "0")}`,
+      number: `TKT-${String(101 + i).padStart(3, "0")}`,
       subject,
       description:
         "Detailed reproduction steps and environment information were supplied by the client at submission time. Support has full context on the affected workspace, plan tier and impacted users.",
@@ -286,13 +286,13 @@ function makeEvents(tickets: Ticket[]): TicketEvent[] {
 
 function makeNotifications(): Notification[] {
   const seed: [string, string, string, Notification["type"]][] = [
-    ["u1", "New critical ticket", "TKT-2026-000108 was created by Rebekah Foster", "ticket"],
-    ["u1", "Client replied", "John McCormick replied on TKT-2026-000102", "reply"],
-    ["u1", "SLA breach risk", "TKT-2026-000101 is approaching its resolution deadline", "status"],
-    ["u1", "Ticket reopened", "Mark Clark reopened TKT-2026-000109", "status"],
-    ["u10", "Ticket created", "Your ticket TKT-2026-000101 has been created successfully", "ticket"],
-    ["u10", "Support replied", "Elena Rossi replied to TKT-2026-000101", "reply"],
-    ["u10", "Status updated", "TKT-2026-000104 was marked as Resolved", "status"],
+    ["u1", "New critical ticket", "TKT-108 was created by Rebekah Foster", "ticket"],
+    ["u1", "Client replied", "John McCormick replied on TKT-102", "reply"],
+    ["u1", "SLA breach risk", "TKT-101 is approaching its resolution deadline", "status"],
+    ["u1", "Ticket reopened", "Mark Clark reopened TKT-109", "status"],
+    ["u10", "Ticket created", "Your ticket TKT-101 has been created successfully", "ticket"],
+    ["u10", "Support replied", "Elena Rossi replied to TKT-101", "reply"],
+    ["u10", "Status updated", "TKT-104 was marked as Resolved", "status"],
     ["u10", "Security", "Your password was changed successfully", "security"],
   ];
   return seed.map(([userId, title, message, type], i) => ({
@@ -309,15 +309,15 @@ function makeNotifications(): Notification[] {
 function makeAudit(): AuditLog[] {
   const seed: [string, string, string, string][] = [
     ["u1", "Login", "Authentication", "Signed in from Chrome on macOS"],
-    ["u2", "Ticket updated", "Tickets", "Changed status of TKT-2026-000101 to In Progress"],
-    ["u1", "Ticket assigned", "Tickets", "Assigned TKT-2026-000108 to Marcus Bell"],
+    ["u2", "Ticket updated", "Tickets", "Changed status of TKT-101 to In Progress"],
+    ["u1", "Ticket assigned", "Tickets", "Assigned TKT-108 to Marcus Bell"],
     ["u1", "Client created", "Clients", "Created client account for Lumen Dev"],
-    ["u3", "Priority changed", "Tickets", "Raised TKT-2026-000112 to Critical"],
+    ["u3", "Priority changed", "Tickets", "Raised TKT-112 to Critical"],
     ["u1", "Client deactivated", "Clients", "Deactivated BluePeak Co"],
     ["u1", "Password reset", "Security", "Triggered password reset for john@northwind.com"],
     ["u2", "Logout", "Authentication", "Session ended"],
     ["u1", "Admin created", "Support Team", "Added agent Priya Nair"],
-    ["u3", "Ticket created", "Tickets", "Created TKT-2026-000123 on behalf of client"],
+    ["u3", "Ticket created", "Tickets", "Created TKT-123 on behalf of client"],
   ];
   return seed.map(([userId, action, module, description], i) => ({
     id: `a${i + 1}`,
@@ -396,7 +396,7 @@ export const actions = {
       input.priority === "Critical" ? 4 : input.priority === "High" ? 12 : input.priority === "Medium" ? 24 : 72;
     const ticket: Ticket = {
       id: `t${rid()}`,
-      number: `TKT-2026-${String(seq).padStart(6, "0")}`,
+      number: `TKT-${String(seq).padStart(3, "0")}`,
       subject: input.subject,
       description: input.description,
       clientId: input.clientId,

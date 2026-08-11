@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Eye, FolderKanban, Pencil, Plus } from "lucide-react";
+import { Eye, FolderKanban, Pencil, Plus, Trash2 } from "lucide-react";
 import { RequireRole } from "@/components/guard";
+import { DeleteEntityDialog } from "@/components/delete-entity-dialog";
 import {
   DataTableActions,
   DataTableHead,
@@ -29,9 +30,9 @@ import {
 import { EmptyState, ProjectStatusBadge, TableSkeleton } from "@/components/primitives";
 import { ProjectFormSheet } from "@/components/project-form-sheet";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { useAuth, isStaff } from "@/lib/auth";
-import { fetchProjects } from "@/lib/projects";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { useAuth, isAdmin, isStaff } from "@/lib/auth";
+import { deleteProject, fetchProjects } from "@/lib/projects";
 import { formatDate } from "@/lib/store";
 import { PROJECT_STATUSES, type ProjectStatus } from "@/lib/types";
 import { getApiErrorMessage } from "@/lib/api";
@@ -97,9 +98,12 @@ function ProjectsPage() {
   const navigate = useNavigate();
   const routeSearch = Route.useSearch();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const canManage = isStaff(user?.role);
+  const canDelete = isAdmin(user?.role);
   const [createOpen, setCreateOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
@@ -152,6 +156,16 @@ function ProjectsPage() {
     }
   }, [isError, error]);
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteProject(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setDeleteTarget(null);
+      toast.success("Project deleted.");
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, "Failed to delete project")),
+  });
+
   const items = data?.items ?? [];
   const meta = data?.meta;
   const totalPages = meta?.totalPages ?? 1;
@@ -180,7 +194,6 @@ function ProjectsPage() {
           activeFilterCount={activeCount}
           onFilterApply={apply}
           onFilterClear={clearFilters}
-          onExport={() => toast.info("Export coming soon.")}
           primaryAction={
             canManage ? (
               <Button size="sm" className="rounded-md" onClick={() => setCreateOpen(true)}>
@@ -304,6 +317,17 @@ function ProjectsPage() {
                           <DropdownMenuItem onClick={() => setEditId(project._id)}>
                             <Pencil className="size-4" /> Edit
                           </DropdownMenuItem>
+                          {canDelete ? (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteTarget({ id: project._id, name: project.name })}
+                              >
+                                <Trash2 className="size-4" /> Delete
+                              </DropdownMenuItem>
+                            </>
+                          ) : null}
                         </DataTableRowMenu>
                       </DataTableActions>
                     </TableCell>
@@ -347,6 +371,23 @@ function ProjectsPage() {
           projectId={editId}
         />
       ) : null}
+
+      <DeleteEntityDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete project?"
+        description={
+          deleteTarget
+            ? `${deleteTarget.name} will be permanently removed. Projects with tickets cannot be deleted.`
+            : ""
+        }
+        isPending={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+      />
     </>
   );
 }
