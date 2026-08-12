@@ -57,10 +57,15 @@ export function InternalUserFormSheet({ open, onOpenChange, mode, userId, onSave
           onSubmit={async (payload) => {
             try {
               if (mode === "create") {
-                const user = await createInternalUser(payload as CreateInternalUserPayload);
+                const createPayload = payload as CreateInternalUserPayload;
+                const user = await createInternalUser(createPayload);
                 const id = user.id ?? user._id!;
                 invalidate(id);
-                toast.success("User created and invitation sent.");
+                toast.success(
+                  createPayload.temporaryPassword
+                    ? "User created. They can sign in with the temporary password you set."
+                    : "User created. They can sign in with the temporary password from the invitation email (or backend log in dev).",
+                );
                 onOpenChange(false);
                 onSaved?.(id);
               } else if (userId) {
