@@ -73,11 +73,7 @@ function LoginPage() {
     setLoading(true);
     try {
       const user = await login(validEmail, validPassword, remember);
-      if (user.mustChangePassword) {
-        navigate({ to: "/change-password", replace: true });
-      } else {
-        navigate({ to: homeFor(user.role), replace: true });
-      }
+      navigate({ to: homeFor(user.role), replace: true });
     } catch (err) {
       setApiError(getApiErrorMessage(err, "Unable to sign in."));
     } finally {
