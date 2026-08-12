@@ -42,6 +42,7 @@ import {
 } from "@/lib/sla";
 import type { CompanySettings, Priority } from "@/lib/types";
 import { PRIORITIES } from "@/lib/types";
+import { companySettingsSchema, FIELD_LIMITS, validateForm } from "@/lib/form-validation";
 
 interface SlaFormRow {
   priority: Priority;
@@ -140,6 +141,16 @@ function SettingsPage() {
 
   function saveChanges() {
     if (!companyForm) return;
+    const validation = validateForm(companySettingsSchema, {
+      companyName: companyForm.companyName,
+      supportEmail: companyForm.supportEmail,
+      contactNumber: companyForm.contactNumber,
+    });
+    if (!validation.success) {
+      const firstError = Object.values(validation.errors)[0];
+      toast.error(firstError ?? "Please fix the highlighted fields.");
+      return;
+    }
     saveMutation.mutate(companyForm);
   }
 
@@ -229,12 +240,18 @@ function CompanySettings({
         <SettingsField label="Support email">
           <Input
             type="email"
+            maxLength={FIELD_LIMITS.EMAIL_MAX}
             value={form.supportEmail}
             onChange={(e) => onChange("supportEmail", e.target.value)}
           />
         </SettingsField>
         <SettingsField label="Contact number">
-          <Input value={form.contactNumber} onChange={(e) => onChange("contactNumber", e.target.value)} />
+          <Input
+            maxLength={FIELD_LIMITS.MOBILE_LENGTH + 4}
+            placeholder="9876543210"
+            value={form.contactNumber}
+            onChange={(e) => onChange("contactNumber", e.target.value)}
+          />
         </SettingsField>
         <SettingsField label="Website">
           <Input value={form.website} onChange={(e) => onChange("website", e.target.value)} />

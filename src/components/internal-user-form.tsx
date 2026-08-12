@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchDepartments, fetchDesignations, fetchTeams } from "@/lib/org";
-import { internalUserSchema, validateForm } from "@/lib/form-validation";
+import { internalUserSchema, FIELD_LIMITS } from "@/lib/form-validation";
+import { useZodForm } from "@/lib/use-zod-form";
 import { fetchEmployees } from "@/lib/users";
 import type { CreateInternalUserPayload, InternalUser, Role, UpdateInternalUserPayload } from "@/lib/types";
 
@@ -37,6 +38,8 @@ export function InternalUserForm({
   onCancel,
   submitLabel = mode === "create" ? "Create user" : "Save changes",
 }: InternalUserFormProps) {
+  const { errors, handleBlur, handleChange, validateAll } = useZodForm(internalUserSchema);
+
   const [firstName, setFirstName] = useState(initial?.firstName ?? "");
   const [lastName, setLastName] = useState(initial?.lastName ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
@@ -55,7 +58,6 @@ export function InternalUserForm({
   const [status, setStatus] = useState(initial?.status ?? "Active");
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const departmentsQuery = useQuery({ queryKey: ["departments"], queryFn: fetchDepartments });
   const designationsQuery = useQuery({
@@ -77,13 +79,17 @@ export function InternalUserForm({
     }
   }, [departmentId]);
 
-  function clearError(field: string) {
-    setErrors((current) => {
-      if (!current[field]) return current;
-      const next = { ...current };
-      delete next[field];
-      return next;
-    });
+  function fieldHandlers(field: string, setter: (value: string) => void) {
+    return {
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        const next = e.target.value;
+        setter(next);
+        handleChange(field, next);
+      },
+      onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+        handleBlur(field, e.target.value);
+      },
+    };
   }
 
   return (
@@ -92,25 +98,19 @@ export function InternalUserForm({
       noValidate
       onSubmit={async (event) => {
         event.preventDefault();
-        const validation = validateForm(internalUserSchema, {
-          firstName,
-          lastName,
-          email,
-          phone,
-        });
-        if (!validation.success) {
-          setErrors(validation.errors);
-          return;
-        }
-        setErrors({});
+        const validation = validateAll({ firstName, lastName, email, phone });
+        if (!validation.success) return;
+
+        const { firstName: validFirstName, lastName: validLastName, email: validEmail, phone: validPhone } =
+          validation.data;
         setSubmitting(true);
         try {
           if (mode === "create") {
             await onSubmit({
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
-              email: email.trim(),
-              phone: phone.trim(),
+              firstName: validFirstName,
+              lastName: validLastName,
+              email: validEmail,
+              phone: validPhone,
               address: address.trim() || undefined,
               gender: gender || undefined,
               employeeId: employeeId.trim() || undefined,
@@ -126,10 +126,10 @@ export function InternalUserForm({
             });
           } else {
             await onSubmit({
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
-              email: email.trim(),
-              phone: phone.trim(),
+              firstName: validFirstName,
+              lastName: validLastName,
+              email: validEmail,
+              phone: validPhone,
               address: address.trim(),
               gender: gender || undefined,
               employeeId: employeeId.trim() || undefined,
@@ -151,40 +151,34 @@ export function InternalUserForm({
         <FormField label="First name" error={errors.firstName} required>
           <Input
             value={firstName}
-            onChange={(e) => {
-              setFirstName(e.target.value);
-              clearError("firstName");
-            }}
+            {...fieldHandlers("firstName", setFirstName)}
+            maxLength={FIELD_LIMITS.NAME_MAX}
             className={fieldInputClass(errors.firstName)}
           />
         </FormField>
         <FormField label="Last name" error={errors.lastName} required>
           <Input
             value={lastName}
-            onChange={(e) => {
-              setLastName(e.target.value);
-              clearError("lastName");
-            }}
+            {...fieldHandlers("lastName", setLastName)}
+            maxLength={FIELD_LIMITS.NAME_MAX}
             className={fieldInputClass(errors.lastName)}
           />
         </FormField>
         <FormField label="Email" error={errors.email} required>
           <Input
+            type="email"
+            maxLength={FIELD_LIMITS.EMAIL_MAX}
             value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              clearError("email");
-            }}
+            {...fieldHandlers("email", setEmail)}
             className={fieldInputClass(errors.email)}
           />
         </FormField>
         <FormField label="Mobile" error={errors.phone} required>
           <Input
             value={phone}
-            onChange={(e) => {
-              setPhone(e.target.value);
-              clearError("phone");
-            }}
+            {...fieldHandlers("phone", setPhone)}
+            maxLength={FIELD_LIMITS.MOBILE_LENGTH + 4}
+            placeholder="9876543210"
             className={fieldInputClass(errors.phone)}
           />
         </FormField>

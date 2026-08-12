@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getApiErrorMessage } from "@/lib/api";
-import { createTicketSchema, validateForm } from "@/lib/form-validation";
+import { createTicketSchema, FIELD_LIMITS, validateForm } from "@/lib/form-validation";
 import { useAuth } from "@/lib/auth";
 import { fetchCategories } from "@/lib/categories";
 import { fetchProjects } from "@/lib/projects";
@@ -163,7 +163,7 @@ export function CreateTicketForm({
                 clearError("subject");
               }}
               placeholder="Short summary of the issue"
-              maxLength={120}
+              maxLength={FIELD_LIMITS.SUBJECT_MAX}
               className={fieldInputClass(errors["subject"])}
             />
           </FormField>

@@ -4,7 +4,8 @@ import { fieldInputClass, FormField } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { customerCreateSchema, customerEditSchema, validateForm } from "@/lib/form-validation";
+import { customerCreateSchema, customerEditSchema, FIELD_LIMITS } from "@/lib/form-validation";
+import { useZodForm } from "@/lib/use-zod-form";
 import type { CreateCustomerPayload, Customer, UpdateCustomerPayload } from "@/lib/types";
 
 interface CustomerFormProps {
@@ -22,6 +23,9 @@ export function CustomerForm({
   submitLabel = "Save customer",
   isEdit = false,
 }: CustomerFormProps) {
+  const schema = isEdit ? customerEditSchema : customerCreateSchema;
+  const { errors, handleBlur, handleChange, validateAll } = useZodForm(schema);
+
   const [companyName, setCompanyName] = useState(initial?.companyName ?? initial?.name ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
@@ -37,15 +41,24 @@ export function CustomerForm({
   const [contactMobile, setContactMobile] = useState(initial?.primaryContactMobile ?? "");
   const [contactTitle, setContactTitle] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  function clearError(field: string) {
-    setErrors((current) => {
-      if (!current[field]) return current;
-      const next = { ...current };
-      delete next[field];
-      return next;
-    });
+  function formValues() {
+    return isEdit
+      ? { companyName, email, phone }
+      : { companyName, email, phone, contactName, contactEmail, contactMobile, contactTitle };
+  }
+
+  function fieldHandlers(field: string, setter: (value: string) => void) {
+    return {
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        const next = e.target.value;
+        setter(next);
+        handleChange(field, next);
+      },
+      onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+        handleBlur(field, e.target.value);
+      },
+    };
   }
 
   return (
@@ -54,24 +67,17 @@ export function CustomerForm({
       noValidate
       onSubmit={async (event) => {
         event.preventDefault();
-        const validation = validateForm(
-          isEdit ? customerEditSchema : customerCreateSchema,
-          isEdit
-            ? { companyName, email }
-            : { companyName, email, contactName, contactEmail },
-        );
-        if (!validation.success) {
-          setErrors(validation.errors);
-          return;
-        }
-        setErrors({});
+        const validation = validateAll(formValues());
+        if (!validation.success) return;
+
         setSubmitting(true);
         try {
           if (isEdit) {
+            const data = validation.data;
             await onSubmit({
-              companyName: companyName.trim(),
-              email: email.trim() || undefined,
-              phone,
+              companyName: data.companyName.trim(),
+              email: data.email.trim() || undefined,
+              phone: data.phone || undefined,
               address,
               city,
               state,
@@ -81,10 +87,11 @@ export function CustomerForm({
               portalEnabled,
             });
           } else {
+            const data = validation.data;
             await onSubmit({
-              companyName: companyName.trim(),
-              email: email.trim() || undefined,
-              phone,
+              companyName: data.companyName.trim(),
+              email: data.email.trim() || undefined,
+              phone: data.phone || undefined,
               address,
               city,
               state,
@@ -93,10 +100,10 @@ export function CustomerForm({
               website: website || undefined,
               portalEnabled,
               primaryContact: {
-                name: contactName.trim(),
-                email: contactEmail.trim(),
-                mobile: contactMobile,
-                jobTitle: contactTitle,
+                name: data.contactName,
+                email: data.contactEmail,
+                mobile: data.contactMobile,
+                jobTitle: data.contactTitle.trim() || undefined,
               },
             });
           }
@@ -109,27 +116,31 @@ export function CustomerForm({
         <FormField label="Company name" error={errors.companyName} className="sm:col-span-2" required>
           <Input
             value={companyName}
-            onChange={(e) => {
-              setCompanyName(e.target.value);
-              clearError("companyName");
-            }}
+            {...fieldHandlers("companyName", setCompanyName)}
             className={fieldInputClass(errors.companyName)}
           />
         </FormField>
         <FormField label="Organization email" error={errors.email}>
           <Input
+            type="email"
+            maxLength={FIELD_LIMITS.EMAIL_MAX}
             value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              clearError("email");
-            }}
+            {...fieldHandlers("email", setEmail)}
             className={fieldInputClass(errors.email)}
           />
         </FormField>
-        <div className="grid gap-1.5">
-          <Label>Phone</Label>
-          <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
-        </div>
+        <FormField label="Phone" error={errors.phone}>
+          <Input
+            type="text"
+            inputMode="numeric"
+            autoComplete="tel"
+            value={phone}
+            {...fieldHandlers("phone", setPhone)}
+            maxLength={FIELD_LIMITS.MOBILE_LENGTH + 4}
+            placeholder="9876543210"
+            className={fieldInputClass(errors.phone)}
+          />
+        </FormField>
         <div className="grid gap-1.5 sm:col-span-2">
           <Label>Address</Label>
           <Input value={address} onChange={(e) => setAddress(e.target.value)} />
@@ -167,31 +178,40 @@ export function CustomerForm({
             <FormField label="Name" error={errors.contactName} required>
               <Input
                 value={contactName}
-                onChange={(e) => {
-                  setContactName(e.target.value);
-                  clearError("contactName");
-                }}
+                {...fieldHandlers("contactName", setContactName)}
+                maxLength={FIELD_LIMITS.NAME_MAX}
                 className={fieldInputClass(errors.contactName)}
               />
             </FormField>
-            <div className="grid gap-1.5">
-              <Label>Job title</Label>
-              <Input value={contactTitle} onChange={(e) => setContactTitle(e.target.value)} />
-            </div>
+            <FormField label="Job title" error={errors.contactTitle}>
+              <Input
+                value={contactTitle}
+                {...fieldHandlers("contactTitle", setContactTitle)}
+                maxLength={FIELD_LIMITS.TITLE_MAX}
+                className={fieldInputClass(errors.contactTitle)}
+              />
+            </FormField>
             <FormField label="Email" error={errors.contactEmail} required>
               <Input
+                type="email"
+                maxLength={FIELD_LIMITS.EMAIL_MAX}
                 value={contactEmail}
-                onChange={(e) => {
-                  setContactEmail(e.target.value);
-                  clearError("contactEmail");
-                }}
+                {...fieldHandlers("contactEmail", setContactEmail)}
                 className={fieldInputClass(errors.contactEmail)}
               />
             </FormField>
-            <div className="grid gap-1.5">
-              <Label>Mobile</Label>
-              <Input value={contactMobile} onChange={(e) => setContactMobile(e.target.value)} />
-            </div>
+            <FormField label="Mobile" error={errors.contactMobile} required>
+              <Input
+                type="text"
+                inputMode="numeric"
+                autoComplete="tel"
+                value={contactMobile}
+                {...fieldHandlers("contactMobile", setContactMobile)}
+                maxLength={FIELD_LIMITS.MOBILE_LENGTH + 4}
+                placeholder="9876543210"
+                className={fieldInputClass(errors.contactMobile)}
+              />
+            </FormField>
           </div>
         </div>
       )}

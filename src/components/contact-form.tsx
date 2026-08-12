@@ -4,7 +4,8 @@ import { fieldInputClass, FormField } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { contactFormSchema, validateForm } from "@/lib/form-validation";
+import { contactFormSchema, FIELD_LIMITS } from "@/lib/form-validation";
+import { useZodForm } from "@/lib/use-zod-form";
 import type { CreateContactPayload, CustomerContact, UpdateContactPayload } from "@/lib/types";
 
 interface ContactFormProps {
@@ -22,6 +23,8 @@ export function ContactForm({
   onCancel,
   submitLabel = mode === "create" ? "Add contact" : "Save changes",
 }: ContactFormProps) {
+  const { errors, handleBlur, handleChange, validateAll } = useZodForm(contactFormSchema);
+
   const [name, setName] = useState(initial?.name ?? "");
   const [jobTitle, setJobTitle] = useState(initial?.jobTitle ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
@@ -29,15 +32,18 @@ export function ContactForm({
   const [isPrimary, setIsPrimary] = useState(initial?.isPrimary ?? false);
   const [portalAccess, setPortalAccess] = useState(initial?.portalAccess ?? false);
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  function clearError(field: string) {
-    setErrors((current) => {
-      if (!current[field]) return current;
-      const next = { ...current };
-      delete next[field];
-      return next;
-    });
+  function fieldHandlers(field: string, setter: (value: string) => void) {
+    return {
+      onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+        const next = event.target.value;
+        setter(next);
+        handleChange(field, next);
+      },
+      onBlur: (event: React.FocusEvent<HTMLInputElement>) => {
+        handleBlur(field, event.target.value);
+      },
+    };
   }
 
   return (
@@ -46,29 +52,27 @@ export function ContactForm({
       noValidate
       onSubmit={async (event) => {
         event.preventDefault();
-        const validation = validateForm(contactFormSchema, { name, email });
-        if (!validation.success) {
-          setErrors(validation.errors);
-          return;
-        }
-        setErrors({});
+        const validation = validateAll({ name, email, mobile, jobTitle });
+        if (!validation.success) return;
+
+        const data = validation.data;
         setSubmitting(true);
         try {
           if (mode === "create") {
             await onSubmit({
-              name: name.trim(),
-              jobTitle: jobTitle.trim() || undefined,
-              email: email.trim(),
-              mobile: mobile.trim() || undefined,
+              name: data.name,
+              jobTitle: data.jobTitle.trim() || undefined,
+              email: data.email,
+              mobile: data.mobile || undefined,
               isPrimary,
               portalAccess,
             });
           } else {
             await onSubmit({
-              name: name.trim(),
-              jobTitle: jobTitle.trim(),
-              email: email.trim(),
-              mobile: mobile.trim(),
+              name: data.name,
+              jobTitle: data.jobTitle.trim(),
+              email: data.email,
+              mobile: data.mobile || "",
               portalAccess,
             });
           }
@@ -81,45 +85,44 @@ export function ContactForm({
         <Input
           id="contact-name"
           value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-            clearError("name");
-          }}
+          {...fieldHandlers("name", setName)}
+          maxLength={FIELD_LIMITS.NAME_MAX}
           className={fieldInputClass(errors.name)}
         />
       </FormField>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="contact-title">Job title</Label>
+      <FormField label="Job title" htmlFor="contact-title" error={errors.jobTitle}>
         <Input
           id="contact-title"
           value={jobTitle}
-          onChange={(event) => setJobTitle(event.target.value)}
+          {...fieldHandlers("jobTitle", setJobTitle)}
+          maxLength={FIELD_LIMITS.TITLE_MAX}
           placeholder="Operations Manager"
+          className={fieldInputClass(errors.jobTitle)}
         />
-      </div>
+      </FormField>
 
       <FormField label="Email" htmlFor="contact-email" error={errors.email} required>
         <Input
           id="contact-email"
+          type="email"
+          maxLength={FIELD_LIMITS.EMAIL_MAX}
           value={email}
-          onChange={(event) => {
-            setEmail(event.target.value);
-            clearError("email");
-          }}
+          {...fieldHandlers("email", setEmail)}
           className={fieldInputClass(errors.email)}
         />
       </FormField>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="contact-mobile">Mobile</Label>
+      <FormField label="Mobile" htmlFor="contact-mobile" error={errors.mobile}>
         <Input
           id="contact-mobile"
           value={mobile}
-          onChange={(event) => setMobile(event.target.value)}
-          placeholder="+1 555 0100"
+          {...fieldHandlers("mobile", setMobile)}
+          maxLength={FIELD_LIMITS.MOBILE_LENGTH + 4}
+          placeholder="9876543210"
+          className={fieldInputClass(errors.mobile)}
         />
-      </div>
+      </FormField>
 
       {mode === "create" && (
         <div className="flex items-center justify-between rounded-lg border px-3 py-2">

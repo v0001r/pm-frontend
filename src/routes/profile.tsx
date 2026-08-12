@@ -6,12 +6,14 @@ import { toast } from "sonner";
 import { RequireRole } from "@/components/guard";
 import { PageHeader, SectionCard, UserAvatar } from "@/components/primitives";
 import { PasswordField, PasswordStrength } from "@/components/password";
+import { fieldInputClass, FormField } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsPanelTrigger } from "@/components/ui/tabs";
 import { getApiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { FIELD_LIMITS, profilePhoneSchema, validateForm } from "@/lib/form-validation";
 import { fetchOwnProfile, updateOwnProfile } from "@/lib/internal-users";
 import { formatDate } from "@/lib/store";
 import { fullName } from "@/lib/types";
@@ -42,6 +44,7 @@ function ProfilePage() {
   const [changing, setChanging] = useState(false);
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
 
   const profileQuery = useQuery({
     queryKey: ["own-profile"],
@@ -50,7 +53,7 @@ function ProfilePage() {
   });
 
   const profileMutation = useMutation({
-    mutationFn: () => updateOwnProfile({ phone, address }),
+    mutationFn: (payload: { phone: string; address: string }) => updateOwnProfile(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["own-profile"] });
       toast.success("Profile updated.");
@@ -97,7 +100,17 @@ function ProfilePage() {
                   toast.info("Client profile updates are managed by your organization.");
                   return;
                 }
-                profileMutation.mutate();
+                const phoneValue = phone || displayUser.phone || "";
+                const validation = validateForm(profilePhoneSchema, { phone: phoneValue });
+                if (!validation.success) {
+                  setProfileErrors(validation.errors);
+                  return;
+                }
+                setProfileErrors({});
+                profileMutation.mutate({
+                  phone: validation.data.phone || "",
+                  address: address || displayUser.address || "",
+                });
               }}
             >
               <div className="flex items-center gap-3 sm:col-span-2">
@@ -119,15 +132,25 @@ function ProfilePage() {
                 <Label>Email</Label>
                 <Input value={displayUser.email} disabled />
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="phone">Phone</Label>
+              <FormField label="Phone" htmlFor="phone" error={profileErrors["phone"]}>
                 <Input
                   id="phone"
-                  value={phone || displayUser.phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  value={phone || displayUser.phone || ""}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    setProfileErrors((current) => {
+                      if (!current["phone"]) return current;
+                      const next = { ...current };
+                      delete next["phone"];
+                      return next;
+                    });
+                  }}
+                  maxLength={FIELD_LIMITS.MOBILE_LENGTH + 4}
+                  placeholder="9876543210"
                   disabled={user.role === "Client"}
+                  className={fieldInputClass(profileErrors["phone"])}
                 />
-              </div>
+              </FormField>
               <div className="grid gap-1.5 sm:col-span-2">
                 <Label htmlFor="address">Address</Label>
                 <Input

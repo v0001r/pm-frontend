@@ -11,7 +11,8 @@ import { GuestRoute } from "@/components/guard";
 import { fieldInputClass, FormField } from "@/components/form-field";
 import { useAuth, homeFor } from "@/lib/auth";
 import { getApiErrorMessage } from "@/lib/api";
-import { loginSchema, validateForm } from "@/lib/form-validation";
+import { FIELD_LIMITS, loginSchema } from "@/lib/form-validation";
+import { useZodForm } from "@/lib/use-zod-form";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
@@ -40,35 +41,38 @@ const demoAccounts = [
 function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { errors, handleBlur, handleChange, validateAll } = useZodForm(loginSchema);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function clearError(field: string) {
-    setErrors((current) => {
-      if (!current[field]) return current;
-      const next = { ...current };
-      delete next[field];
-      return next;
-    });
+  function fieldHandlers(field: "email" | "password", setter: (value: string) => void) {
+    return {
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        const next = e.target.value;
+        setter(next);
+        handleChange(field, next);
+        setApiError("");
+      },
+      onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+        handleBlur(field, e.target.value);
+      },
+    };
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setApiError("");
-    const validation = validateForm(loginSchema, { email, password });
-    if (!validation.success) {
-      setErrors(validation.errors);
-      return;
-    }
-    setErrors({});
+    const validation = validateAll({ email, password });
+    if (!validation.success) return;
+
+    const { email: validEmail, password: validPassword } = validation.data;
     setLoading(true);
     try {
-      const user = await login(email, password, remember);
+      const user = await login(validEmail, validPassword, remember);
       if (user.mustChangePassword) {
         navigate({ to: "/change-password", replace: true });
       } else {
@@ -129,12 +133,11 @@ function LoginPage() {
             <FormField label="Email address" htmlFor="email" error={errors.email} required>
               <Input
                 id="email"
+                type="email"
                 autoComplete="email"
+                maxLength={FIELD_LIMITS.EMAIL_MAX}
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  clearError("email");
-                }}
+                {...fieldHandlers("email", setEmail)}
                 placeholder="you@company.com"
                 className={fieldInputClass(errors.email)}
               />
@@ -146,10 +149,7 @@ function LoginPage() {
                   type={show ? "text" : "password"}
                   autoComplete="current-password"
                   value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    clearError("password");
-                  }}
+                  {...fieldHandlers("password", setPassword)}
                   placeholder="••••••••"
                   className={cn("pr-10", fieldInputClass(errors.password))}
                 />
@@ -190,6 +190,8 @@ function LoginPage() {
                   onClick={() => {
                     setEmail(a.email);
                     setPassword("Password@123");
+                    handleBlur("email", a.email);
+                    handleBlur("password", "Password@123");
                   }}
                   className="flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-accent"
                 >

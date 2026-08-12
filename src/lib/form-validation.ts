@@ -1,8 +1,41 @@
 import { z } from "zod";
 import { passwordValid } from "@/components/password";
 
+export const FIELD_LIMITS = {
+  EMAIL_MAX: 100,
+  NAME_MIN: 3,
+  NAME_MAX: 50,
+  TITLE_MIN: 3,
+  TITLE_MAX: 100,
+  SUBJECT_MIN: 3,
+  SUBJECT_MAX: 250,
+  MOBILE_LENGTH: 10,
+  MOBILE_REGEX: /^[6-9]\d{9}$/,
+} as const;
+
+const MOBILE_ERROR = "Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9";
+
+export function getZodErrorMessage(error: z.ZodError): string {
+  const preferred = error.issues.find((issue) => issue.message && issue.message !== "Invalid input");
+  return preferred?.message ?? error.issues[0]?.message ?? "Invalid value";
+}
+
+export function normalizeMobileInput(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91")) {
+    return digits.slice(2);
+  }
+  return digits;
+}
+
 export function mapFieldErrors(error: z.ZodError): Record<string, string> {
   const errors: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const key = String(issue.path[0] ?? "");
+    if (!key || key in errors) continue;
+    if (issue.message === "Invalid input") continue;
+    errors[key] = issue.message;
+  }
   for (const issue of error.issues) {
     const key = String(issue.path[0] ?? "");
     if (key && !(key in errors)) {
@@ -23,23 +56,85 @@ export function validateForm<T extends z.ZodTypeAny>(
   return { success: false, errors: mapFieldErrors(result.error) };
 }
 
-export const emailField = z.string().trim().min(1, "Email is required").email("Enter a valid email address");
+export const emailField = z
+  .string()
+  .trim()
+  .min(1, "Email is required")
+  .email("Enter a valid email address")
+  .max(FIELD_LIMITS.EMAIL_MAX, "Email cannot exceed 100 characters");
 
 export const optionalEmailField = z.union([
   z.literal(""),
-  z.string().trim().email("Enter a valid email address"),
+  z
+    .string()
+    .trim()
+    .email("Enter a valid email address")
+    .max(FIELD_LIMITS.EMAIL_MAX, "Email cannot exceed 100 characters"),
 ]);
+
+function personNameField(label = "Name", required = true) {
+  const rules = z
+    .string()
+    .trim()
+    .min(FIELD_LIMITS.NAME_MIN, `${label} must be at least 3 characters`)
+    .max(FIELD_LIMITS.NAME_MAX, `${label} cannot exceed 50 characters`);
+
+  if (required) {
+    return z.string().trim().min(1, `${label} is required`).pipe(rules);
+  }
+
+  return z.union([z.literal(""), rules]);
+}
+
+function titleField(required = false) {
+  const rules = z
+    .string()
+    .trim()
+    .min(FIELD_LIMITS.TITLE_MIN, "Title must be at least 3 characters")
+    .max(FIELD_LIMITS.TITLE_MAX, "Title cannot exceed 100 characters");
+
+  if (required) {
+    return z.string().trim().min(1, "Title is required").pipe(rules);
+  }
+
+  return z.union([z.literal(""), rules]);
+}
+
+function mobileField(required = true) {
+  let schema = z.string().trim();
+
+  if (required) {
+    schema = schema.min(1, "Mobile number is required");
+  }
+
+  return schema
+    .refine(
+      (value) => value === "" || FIELD_LIMITS.MOBILE_REGEX.test(normalizeMobileInput(value)),
+      { message: MOBILE_ERROR },
+    )
+    .transform((value) => (value === "" ? "" : normalizeMobileInput(value)));
+}
+
+export const subjectField = z
+  .string()
+  .trim()
+  .min(FIELD_LIMITS.SUBJECT_MIN, "Subject must be at least 3 characters")
+  .max(FIELD_LIMITS.SUBJECT_MAX, "Subject cannot exceed 250 characters");
 
 export const customerCreateSchema = z.object({
   companyName: z.string().trim().min(1, "Company name is required"),
   email: optionalEmailField,
-  contactName: z.string().trim().min(1, "Contact name is required"),
+  phone: mobileField(false),
+  contactName: personNameField("Name"),
   contactEmail: emailField,
+  contactMobile: mobileField(),
+  contactTitle: titleField(false),
 });
 
 export const customerEditSchema = z.object({
   companyName: z.string().trim().min(1, "Company name is required"),
   email: optionalEmailField,
+  phone: mobileField(false),
 });
 
 export const projectFormSchema = z
@@ -60,16 +155,14 @@ export const projectFormSchema = z
   });
 
 export const contactFormSchema = z.object({
-  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  name: personNameField("Name"),
   email: emailField,
+  mobile: mobileField(false),
+  jobTitle: titleField(false),
 });
 
 export const createTicketSchema = z.object({
-  subject: z
-    .string()
-    .trim()
-    .min(5, "Subject must be at least 5 characters")
-    .max(120, "Subject cannot exceed 120 characters"),
+  subject: subjectField,
   projectId: z.string().min(1, "Select a project"),
   categoryId: z.string().min(1, "Select a category"),
   description: z
@@ -80,10 +173,20 @@ export const createTicketSchema = z.object({
 });
 
 export const internalUserSchema = z.object({
-  firstName: z.string().trim().min(1, "First name is required"),
-  lastName: z.string().trim().min(1, "Last name is required"),
+  firstName: personNameField("First name"),
+  lastName: personNameField("Last name"),
   email: emailField,
-  phone: z.string().trim().min(1, "Mobile number is required"),
+  phone: mobileField(),
+});
+
+export const profilePhoneSchema = z.object({
+  phone: mobileField(false),
+});
+
+export const companySettingsSchema = z.object({
+  companyName: z.string().trim().min(1, "Company name is required"),
+  supportEmail: optionalEmailField,
+  contactNumber: mobileField(false),
 });
 
 export const loginSchema = z.object({

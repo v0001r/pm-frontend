@@ -8,7 +8,7 @@ import { GuestRoute } from "@/components/guard";
 import { fieldInputClass, FormField } from "@/components/form-field";
 import { forgotPassword } from "@/lib/auth";
 import { getApiErrorMessage } from "@/lib/api";
-import { forgotPasswordSchema, validateForm } from "@/lib/form-validation";
+import { FIELD_LIMITS, forgotPasswordSchema, validateForm } from "@/lib/form-validation";
 
 export const Route = createFileRoute("/forgot-password")({
   ssr: false,
@@ -44,8 +44,10 @@ function ForgotPassword() {
     }
     setErrors({});
     setLoading(true);
+    const normalizedEmail = validation.data.email;
     try {
-      await forgotPassword(email);
+      await forgotPassword(normalizedEmail);
+      setEmail(normalizedEmail);
       setSent(true);
     } catch (err) {
       setApiError(getApiErrorMessage(err, "Unable to process request."));
@@ -66,7 +68,7 @@ function ForgotPassword() {
             <Alert className="mt-4">
               <MailCheck className="size-4" />
               <AlertDescription>
-                If an account exists with this email address, a password reset link has been sent.
+                A password reset link has been sent to <strong>{email}</strong>. Check your inbox and spam folder.
               </AlertDescription>
             </Alert>
             <div className="mt-5 flex flex-col gap-2">
@@ -92,6 +94,9 @@ function ForgotPassword() {
               <FormField label="Email address" htmlFor="email" error={errors.email} required>
                 <Input
                   id="email"
+                  type="email"
+                  autoComplete="email"
+                  maxLength={FIELD_LIMITS.EMAIL_MAX}
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
@@ -101,6 +106,13 @@ function ForgotPassword() {
                       delete next.email;
                       return next;
                     });
+                    setApiError("");
+                  }}
+                  onBlur={() => {
+                    const validation = validateForm(forgotPasswordSchema, { email });
+                    if (!validation.success) {
+                      setErrors(validation.errors);
+                    }
                   }}
                   placeholder="you@company.com"
                   className={fieldInputClass(errors.email)}
