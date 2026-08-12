@@ -53,8 +53,15 @@ export function CreateTicketForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const projectsQuery = useQuery({
-    queryKey: ["projects", { createTicket: true, role: user?.role }],
-    queryFn: () => fetchProjects({ page: 1, limit: 100, sortBy: "name", sortOrder: "asc" }),
+    queryKey: ["projects", { createTicket: true, role: user?.role, unscoped: isStaffOrAdmin }],
+    queryFn: () =>
+      fetchProjects({
+        page: 1,
+        limit: 100,
+        sortBy: "name",
+        sortOrder: "asc",
+        ...(isStaffOrAdmin ? { unscoped: true } : {}),
+      }),
     enabled: Boolean(user),
   });
 
@@ -343,7 +350,7 @@ export function CreateTicketForm({
         description={
           isClient
             ? "Select a project and describe the issue. Our team will respond within your SLA."
-            : "Log a support request for any project you can access."
+            : "Log a support request for any project."
         }
       />
       <SectionCard>{form}</SectionCard>

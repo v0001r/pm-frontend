@@ -17,7 +17,7 @@ export function TicketFormSheet({ open, onOpenChange, initialProjectId, onSaved 
       open={open}
       onOpenChange={onOpenChange}
       title="Create ticket"
-      description="Log a support request for any project you can access."
+      description="Log a support request for any project."
     >
       <CreateTicketForm
         embedded

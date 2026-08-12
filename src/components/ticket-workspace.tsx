@@ -163,6 +163,12 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
     onError: (error) => toast.error(getApiErrorMessage(error, "Failed to update status")),
   });
 
+  const events = eventsQuery.data ?? [];
+  const historyEntries = useMemo(
+    () => mergeTicketHistory(events, ticketQuery.data?.sla),
+    [events, ticketQuery.data?.sla],
+  );
+
   const runUpdate = (payload: Parameters<typeof updateTicket>[1], description: string) => {
     updateMutation.mutate(payload, { onSuccess: () => toast.success(description) });
   };
@@ -220,8 +226,6 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
     const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     return messageSort === "asc" ? diff : -diff;
   });
-  const events = eventsQuery.data ?? [];
-  const historyEntries = useMemo(() => mergeTicketHistory(events, ticket.sla), [events, ticket.sla]);
   const activities = activitiesQuery.data ?? [];
   const categories = categoriesQuery.data ?? [];
   const employees = employeesQuery.data ?? [];

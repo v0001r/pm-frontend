@@ -239,6 +239,7 @@ export interface ProjectQueryParams {
   status?: ProjectStatus;
   sortBy?: "name" | "startDate" | "endDate" | "createdAt";
   sortOrder?: "asc" | "desc";
+  unscoped?: boolean;
 }
 
 export interface Category {
