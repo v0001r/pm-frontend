@@ -448,9 +448,9 @@ export interface CreateInternalUserPayload {
   address?: string;
   gender?: string;
   employeeId?: string;
-  departmentId: string;
-  designationId: string;
-  teamId: string;
+  departmentId?: string;
+  designationId?: string;
+  teamId?: string;
   reportingManagerId?: string;
   dateOfJoining?: string;
   role: Role;

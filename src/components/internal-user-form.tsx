@@ -38,6 +38,7 @@ export function InternalUserForm({
   onCancel,
   submitLabel = mode === "create" ? "Create user" : "Save changes",
 }: InternalUserFormProps) {
+  const isEdit = mode === "edit";
   const { errors, handleBlur, handleChange, validateAll } = useZodForm(internalUserSchema);
 
   const [firstName, setFirstName] = useState(initial?.firstName ?? "");
@@ -59,25 +60,28 @@ export function InternalUserForm({
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const departmentsQuery = useQuery({ queryKey: ["departments"], queryFn: fetchDepartments });
+  const departmentsQuery = useQuery({
+    queryKey: ["departments"],
+    queryFn: fetchDepartments,
+    enabled: isEdit,
+  });
   const designationsQuery = useQuery({
     queryKey: ["designations", departmentId],
     queryFn: () => fetchDesignations(departmentId || undefined),
-    enabled: Boolean(departmentId),
+    enabled: isEdit && Boolean(departmentId),
   });
   const teamsQuery = useQuery({
     queryKey: ["teams", departmentId],
     queryFn: () => fetchTeams(departmentId || undefined),
-    enabled: Boolean(departmentId),
+    enabled: isEdit && Boolean(departmentId),
   });
   const managersQuery = useQuery({ queryKey: ["employees"], queryFn: fetchEmployees });
 
   useEffect(() => {
-    if (!departmentId) {
-      setDesignationId("");
-      setTeamId("");
-    }
-  }, [departmentId]);
+    if (!isEdit || departmentId) return;
+    setDesignationId("");
+    setTeamId("");
+  }, [departmentId, isEdit]);
 
   function fieldHandlers(field: string, setter: (value: string) => void) {
     return {
@@ -114,9 +118,6 @@ export function InternalUserForm({
               address: address.trim() || undefined,
               gender: gender || undefined,
               employeeId: employeeId.trim() || undefined,
-              departmentId,
-              designationId,
-              teamId,
               reportingManagerId: reportingManagerId || undefined,
               dateOfJoining: dateOfJoining || undefined,
               role,
@@ -200,7 +201,10 @@ export function InternalUserForm({
         </div>
       </FormSection>
 
-      <FormSection title="Job details" description="Department, team and reporting structure">
+      <FormSection
+        title="Job details"
+        description={isEdit ? "Department, team and reporting structure" : "Employee details and reporting structure"}
+      >
         <div className="grid gap-1.5">
           <Label>Employee ID</Label>
           <Input value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} placeholder="Auto-generated if empty" />
@@ -209,39 +213,43 @@ export function InternalUserForm({
           <Label>Date of joining</Label>
           <Input type="date" value={dateOfJoining} onChange={(e) => setDateOfJoining(e.target.value)} />
         </div>
-        <div className="grid gap-1.5">
-          <Label>Department</Label>
-          <Select value={departmentId} onValueChange={setDepartmentId}>
-            <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-            <SelectContent>
-              {(departmentsQuery.data ?? []).map((d) => (
-                <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-1.5">
-          <Label>Designation</Label>
-          <Select value={designationId} onValueChange={setDesignationId} disabled={!departmentId}>
-            <SelectTrigger><SelectValue placeholder="Select designation" /></SelectTrigger>
-            <SelectContent>
-              {(designationsQuery.data ?? []).map((d) => (
-                <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-1.5">
-          <Label>Team</Label>
-          <Select value={teamId} onValueChange={setTeamId} disabled={!departmentId}>
-            <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
-            <SelectContent>
-              {(teamsQuery.data ?? []).map((t) => (
-                <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {isEdit ? (
+          <>
+            <div className="grid gap-1.5">
+              <Label>Department</Label>
+              <Select value={departmentId} onValueChange={setDepartmentId}>
+                <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                <SelectContent>
+                  {(departmentsQuery.data ?? []).map((d) => (
+                    <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Designation</Label>
+              <Select value={designationId} onValueChange={setDesignationId} disabled={!departmentId}>
+                <SelectTrigger><SelectValue placeholder="Select designation" /></SelectTrigger>
+                <SelectContent>
+                  {(designationsQuery.data ?? []).map((d) => (
+                    <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Team</Label>
+              <Select value={teamId} onValueChange={setTeamId} disabled={!departmentId}>
+                <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
+                <SelectContent>
+                  {(teamsQuery.data ?? []).map((t) => (
+                    <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        ) : null}
         <div className="grid gap-1.5">
           <Label>Reporting manager</Label>
           <Select value={reportingManagerId || "none"} onValueChange={(v) => setReportingManagerId(v === "none" ? "" : v)}>
