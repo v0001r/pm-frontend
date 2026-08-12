@@ -38,7 +38,6 @@ import {
   resetInternalUserPassword,
   updateInternalUserStatus,
 } from "@/lib/internal-users";
-import { fetchDepartments } from "@/lib/org";
 import type { AccountStatus, InternalUser, PaginatedResult, Role } from "@/lib/types";
 
 interface UserSearch {
@@ -62,9 +61,9 @@ export const Route = createFileRoute("/admin/users/")({
 
 const PAGE_SIZE = 10;
 const ANY = "all";
-const FILTER_DEFAULTS = { status: ANY, role: ANY, departmentId: ANY };
+const FILTER_DEFAULTS = { status: ANY, role: ANY };
 
-const TABLE_COLUMNS = ["Employee ID", "Employee", "Designation", "Department", "Team", "Email", "Status", "Action"] as const;
+const TABLE_COLUMNS = ["Employee ID", "Employee", "Email", "Status", "Action"] as const;
 
 function UsersPage() {
   const navigate = useNavigate();
@@ -95,9 +94,7 @@ function UsersPage() {
     }
   }, [routeSearch.action, routeSearch.edit, navigate]);
 
-  useEffect(() => setPage(1), [debouncedSearch, filters.status, filters.role, filters.departmentId, limit]);
-
-  const departmentsQuery = useQuery({ queryKey: ["departments"], queryFn: fetchDepartments });
+  useEffect(() => setPage(1), [debouncedSearch, filters.status, filters.role, limit]);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["internal-users", { page, limit, search: debouncedSearch, filters }],
@@ -108,7 +105,6 @@ function UsersPage() {
         ...(debouncedSearch && { search: debouncedSearch }),
         ...(filters.status !== ANY && { status: filters.status as AccountStatus }),
         ...(filters.role !== ANY && { role: filters.role as Role }),
-        ...(filters.departmentId !== ANY && { departmentId: filters.departmentId }),
         sortBy: "createdAt",
         sortOrder: "desc",
       });
@@ -184,14 +180,6 @@ function UsersPage() {
         }
         filterContent={
           <>
-            <ListingFilterField label="Department">
-              <ListingFilterSelect
-                value={draft.departmentId}
-                onChange={(value) => patchDraft({ departmentId: value })}
-                options={(departmentsQuery.data ?? []).map((d) => [d._id, d.name])}
-                allLabel="All departments"
-              />
-            </ListingFilterField>
             <ListingFilterField label="Role">
               <ListingFilterSelect
                 value={draft.role}
@@ -213,7 +201,7 @@ function UsersPage() {
       />
 
       {isLoading ? (
-        <TableSkeleton rows={6} cols={8} />
+        <TableSkeleton rows={6} cols={5} />
       ) : items.length === 0 ? (
         <EmptyState icon={Users} title="No users found" description="Create your first internal user." />
       ) : (
@@ -241,14 +229,10 @@ function UsersPage() {
                   <TableCell>
                     <EntityCell
                       name={user.name ?? `${user.firstName} ${user.lastName}`}
-                      subtitle={user.designation}
                       hue={220}
                       showAvatar
                     />
                   </TableCell>
-                  <TableCell>{user.designation || "—"}</TableCell>
-                  <TableCell>{user.departmentName ?? user.department ?? "—"}</TableCell>
-                  <TableCell>{user.teamName ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{user.email}</TableCell>
                   <TableCell>
                     <StatusBadge status={user.status} />
