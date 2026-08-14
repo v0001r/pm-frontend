@@ -11,9 +11,16 @@ export const FIELD_LIMITS = {
   SUBJECT_MAX: 250,
   MOBILE_LENGTH: 10,
   MOBILE_REGEX: /^[6-9]\d{9}$/,
+  NAME_REGEX: /^[A-Za-z]+(?: [A-Za-z]+)*$/,
+  // local@domain.tld — one domain label and a 2+ letter TLD (rejects adc@yopmail.com.co)
+  EMAIL_REGEX: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}$/,
 } as const;
 
+export const EMAIL_INVALID_MESSAGE = "Please enter a valid email address.";
+export const CONSECUTIVE_SPACES_MESSAGE = "Please enter a valid value without consecutive spaces.";
+
 const MOBILE_ERROR = "Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9";
+export const MOBILE_LENGTH_ERROR = "Mobile number must be 10 digits.";
 
 export function getZodErrorMessage(error: z.ZodError): string {
   const preferred = error.issues.find((issue) => issue.message && issue.message !== "Invalid input");
@@ -26,6 +33,55 @@ export function normalizeMobileInput(value: string) {
     return digits.slice(2);
   }
   return digits;
+}
+
+export function constrainPersonNameInput(value: string) {
+  return value.replace(/[^A-Za-z ]/g, "").replace(/^ +/, "").slice(0, FIELD_LIMITS.NAME_MAX);
+}
+
+export function constrainFreeTextInput(value: string) {
+  return value.replace(/^ +/, "");
+}
+
+export function hasConsecutiveSpaces(value: string) {
+  return / {2,}/.test(value);
+}
+
+export function constrainMobileInput(value: string) {
+  return value.replace(/\D/g, "").slice(0, FIELD_LIMITS.MOBILE_LENGTH);
+}
+
+export function isValidMobilePrefix(digits: string) {
+  return digits === "" || /^[6-9]/.test(digits);
+}
+
+export function constrainDdMmYyyyInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  const day = digits.slice(0, 2);
+  const month = digits.slice(2, 4);
+  const year = digits.slice(4, 8);
+  if (digits.length <= 2) return day;
+  if (digits.length <= 4) return `${day}-${month}`;
+  return `${day}-${month}-${year}`;
+}
+
+export function isoToDdMmYyyy(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+  if (!match) return "";
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
+export function ddMmYyyyToIso(value: string) {
+  const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(value.trim());
+  if (!match) return "";
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return "";
+  }
+  return `${match[3]}-${match[2]}-${match[1]}`;
 }
 
 export function mapFieldErrors(error: z.ZodError): Record<string, string> {
@@ -60,30 +116,51 @@ export const emailField = z
   .string()
   .trim()
   .min(1, "Email is required")
-  .email("Enter a valid email address")
-  .max(FIELD_LIMITS.EMAIL_MAX, "Email cannot exceed 100 characters");
+  .max(FIELD_LIMITS.EMAIL_MAX, "Email cannot exceed 100 characters")
+  .refine((value) => !value || FIELD_LIMITS.EMAIL_REGEX.test(value), {
+    message: EMAIL_INVALID_MESSAGE,
+  });
 
 export const optionalEmailField = z.union([
   z.literal(""),
   z
     .string()
     .trim()
-    .email("Enter a valid email address")
-    .max(FIELD_LIMITS.EMAIL_MAX, "Email cannot exceed 100 characters"),
+    .max(FIELD_LIMITS.EMAIL_MAX, "Email cannot exceed 100 characters")
+    .refine((value) => FIELD_LIMITS.EMAIL_REGEX.test(value), {
+      message: EMAIL_INVALID_MESSAGE,
+    }),
 ]);
 
+function noConsecutiveSpaces(value: string) {
+  return value.trim() === "" || !/ {2,}/.test(value);
+}
+
+const optionalTextField = z
+  .string()
+  .refine(noConsecutiveSpaces, { message: CONSECUTIVE_SPACES_MESSAGE })
+  .transform((value) => value.trim());
+
 function personNameField(label = "Name", required = true) {
-  const rules = z
+  const contentRules = z
     .string()
-    .trim()
     .min(FIELD_LIMITS.NAME_MIN, `${label} must be at least 3 characters`)
-    .max(FIELD_LIMITS.NAME_MAX, `${label} cannot exceed 50 characters`);
+    .max(FIELD_LIMITS.NAME_MAX, `${label} cannot exceed 50 characters`)
+    .refine((value) => FIELD_LIMITS.NAME_REGEX.test(value), {
+      message: `${label} can only contain letters and spaces`,
+    });
+
+  const schema = z
+    .string()
+    .refine((value) => !required || value.trim().length > 0, { message: `${label} is required` })
+    .refine((value) => value.trim() === "" || !/ {2,}/.test(value), { message: CONSECUTIVE_SPACES_MESSAGE })
+    .transform((value) => value.trim());
 
   if (required) {
-    return z.string().trim().min(1, `${label} is required`).pipe(rules);
+    return schema.pipe(contentRules);
   }
 
-  return z.union([z.literal(""), rules]);
+  return schema.pipe(z.union([z.literal(""), contentRules]));
 }
 
 function titleField(required = false) {
@@ -108,6 +185,13 @@ function mobileField(required = true) {
   }
 
   return schema
+    .refine(
+      (value) => {
+        if (value === "") return true;
+        return normalizeMobileInput(value).length === FIELD_LIMITS.MOBILE_LENGTH;
+      },
+      { message: MOBILE_LENGTH_ERROR },
+    )
     .refine(
       (value) => value === "" || FIELD_LIMITS.MOBILE_REGEX.test(normalizeMobileInput(value)),
       { message: MOBILE_ERROR },
@@ -177,6 +261,8 @@ export const internalUserSchema = z.object({
   lastName: personNameField("Last name"),
   email: emailField,
   phone: mobileField(),
+  address: optionalTextField,
+  employeeId: optionalTextField,
 });
 
 export const profilePhoneSchema = z.object({

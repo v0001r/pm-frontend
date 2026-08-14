@@ -130,10 +130,14 @@ function LoginPage() {
               <Input
                 id="email"
                 type="email"
+                inputMode="email"
                 autoComplete="email"
+                spellCheck={false}
                 maxLength={FIELD_LIMITS.EMAIL_MAX}
                 value={email}
                 {...fieldHandlers("email", setEmail)}
+                aria-invalid={Boolean(errors.email)}
+                aria-describedby={errors.email ? "email-error" : undefined}
                 placeholder="you@company.com"
                 className={fieldInputClass(errors.email)}
               />

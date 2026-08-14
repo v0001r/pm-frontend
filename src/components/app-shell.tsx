@@ -82,6 +82,19 @@ const clientNav: NavItem[] = [
   { label: "My Tickets", to: "/portal/tickets", icon: TicketIcon },
 ];
 
+function isNavItemActive(item: NavItem, pathname: string) {
+  const path = pathname.replace(/\/$/, "") || "/";
+  const to = item.to.replace(/\/$/, "");
+  if (item.exact) {
+    if (to.endsWith("/dashboard")) {
+      const sectionRoot = to.slice(0, -"/dashboard".length) || "/";
+      return path === to || path === sectionRoot;
+    }
+    return path === to;
+  }
+  return path === to || path.startsWith(`${to}/`);
+}
+
 function navItemClasses(active: boolean, collapsed: boolean) {
   return cn(
     "relative flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-all duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-ring/40 focus-visible:outline-none",
@@ -111,7 +124,7 @@ function NavList({
   return (
     <nav className={cn("flex flex-col gap-0.5", collapsed ? "px-2" : "px-1")} aria-label="Main">
       {items.map((item) => {
-        const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
+        const active = isNavItemActive(item, pathname);
         const link = (
           <Link
             key={item.to}
@@ -195,12 +208,16 @@ function ThemeToggle() {
 const crumbLabels: Record<string, string> = {
   admin: "Admin",
   portal: "Portal",
+  staff: "Staff",
+  client: "Client",
+  dashboard: "Dashboard",
   tickets: "Tickets",
   projects: "Projects",
   members: "Members",
   edit: "Edit",
   clients: "Clients",
   customers: "Customers",
+  users: "Users",
   team: "Support Team",
   reports: "Reports",
   audit: "Audit Logs",
@@ -211,6 +228,28 @@ const crumbLabels: Record<string, string> = {
   new: "New ticket",
 };
 
+const crumbLinkAliases: Record<string, string> = {
+  "/admin": "/admin/dashboard",
+  "/staff": "/staff/dashboard",
+  "/client": "/client/dashboard",
+};
+
+const resourceParents = new Set(["users", "customers", "projects", "tickets", "clients"]);
+
+function isResourceIdPart(part: string, parent?: string) {
+  if (part === "new" || part in crumbLabels) return false;
+  if (parent && resourceParents.has(parent)) return true;
+  return /^[a-f0-9]{24}$/i.test(part);
+}
+
+function crumbLabelFor(part: string, parent?: string) {
+  if (crumbLabels[part]) return crumbLabels[part];
+  if (isResourceIdPart(part, parent)) {
+    return part.length > 14 ? `${part.slice(0, 10)}…` : part;
+  }
+  return part.charAt(0).toUpperCase() + part.slice(1);
+}
+
 function Breadcrumbs() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const parts = pathname.split("/").filter(Boolean);
@@ -220,15 +259,24 @@ function Breadcrumbs() {
     <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 text-[13px] md:flex">
       {parts.map((part, i) => {
         const href = `/${parts.slice(0, i + 1).join("/")}`;
-        const label = crumbLabels[part] ?? (part.length > 14 ? `${part.slice(0, 10)}…` : part);
+        const parent = i > 0 ? parts[i - 1] : undefined;
+        const label = crumbLabelFor(part, parent);
         const last = i === parts.length - 1;
+        const idPart = isResourceIdPart(part, parent);
         return (
           <span key={href} className="flex min-w-0 items-center gap-1.5">
             {i > 0 && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
-            {last ? (
-              <span className="truncate font-medium text-foreground">{label}</span>
+            {last || idPart ? (
+              <span
+                className={cn("truncate", last ? "font-medium text-foreground" : "text-muted-foreground")}
+              >
+                {label}
+              </span>
             ) : (
-              <Link to={href} className="truncate text-muted-foreground transition-colors hover:text-foreground">
+              <Link
+                to={crumbLinkAliases[href] ?? href}
+                className="truncate text-muted-foreground transition-colors hover:text-foreground"
+              >
                 {label}
               </Link>
             )}
