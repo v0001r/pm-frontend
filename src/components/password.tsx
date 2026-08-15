@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { forwardRef, useMemo, useState, type ComponentProps } from "react";
 import { Eye, EyeOff, Check, X } from "lucide-react";
 import { fieldInputClass, FieldLabel } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,30 @@ export const passwordRules = [
 ];
 
 export const passwordValid = (v: string) => passwordRules.every((r) => r.test(v));
+
+export const PasswordInput = forwardRef<HTMLInputElement, Omit<ComponentProps<typeof Input>, "type">>(
+  function PasswordInput({ className, ...props }, ref) {
+    const [show, setShow] = useState(false);
+    return (
+      <div className="relative">
+        <Input
+          ref={ref}
+          type={show ? "text" : "password"}
+          className={cn("pr-10", className)}
+          {...props}
+        />
+        <button
+          type="button"
+          onClick={() => setShow((s) => !s)}
+          aria-label={show ? "Hide password" : "Show password"}
+          className="absolute top-1/2 right-2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground hover:text-foreground"
+        >
+          {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        </button>
+      </div>
+    );
+  },
+);
 
 export function PasswordField({
   id,
@@ -31,30 +55,18 @@ export function PasswordField({
   error?: string;
   required?: boolean;
 }) {
-  const [show, setShow] = useState(false);
   return (
     <div className="grid gap-1.5">
-      <FieldLabel htmlFor={id} className={error ? "text-destructive" : undefined} required={required}>
+      <FieldLabel htmlFor={id} className="text-foreground" required={required}>
         {label}
       </FieldLabel>
-      <div className="relative">
-        <Input
-          id={id}
-          type={show ? "text" : "password"}
-          autoComplete={autoComplete}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={cn("pr-10", fieldInputClass(error))}
-        />
-        <button
-          type="button"
-          onClick={() => setShow((s) => !s)}
-          aria-label={show ? "Hide password" : "Show password"}
-          className="absolute top-1/2 right-2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground hover:text-foreground"
-        >
-          {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-        </button>
-      </div>
+      <PasswordInput
+        id={id}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={fieldInputClass(error)}
+      />
       {error ? <p className="text-[0.8125rem] font-medium text-destructive">{error}</p> : null}
     </div>
   );

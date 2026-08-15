@@ -2,8 +2,8 @@ import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { fieldInputClass, FormField } from "@/components/form-field";
+import { PasswordInput } from "@/components/password";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageHeader, SectionCard } from "@/components/primitives";
 import { useAuth, homeFor } from "@/lib/auth";
@@ -78,9 +78,9 @@ function ChangePasswordPage() {
               </Alert>
             )}
             <FormField label="Current / temporary password" htmlFor="current" error={errors.currentPassword} required>
-              <Input
+              <PasswordInput
                 id="current"
-                type="password"
+                autoComplete="current-password"
                 value={currentPassword}
                 onChange={(e) => {
                   setCurrentPassword(e.target.value);
@@ -90,9 +90,9 @@ function ChangePasswordPage() {
               />
             </FormField>
             <FormField label="New password" htmlFor="new" error={errors.newPassword} required>
-              <Input
+              <PasswordInput
                 id="new"
-                type="password"
+                autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => {
                   setNewPassword(e.target.value);
@@ -102,9 +102,9 @@ function ChangePasswordPage() {
               />
             </FormField>
             <FormField label="Confirm new password" htmlFor="confirm" error={errors.confirm} required>
-              <Input
+              <PasswordInput
                 id="confirm"
-                type="password"
+                autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => {
                   setConfirm(e.target.value);

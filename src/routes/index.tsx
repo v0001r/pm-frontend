@@ -1,19 +1,18 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GuestRoute } from "@/components/guard";
 import { fieldInputClass, FormField } from "@/components/form-field";
+import { PasswordInput } from "@/components/password";
 import { useAuth, homeFor } from "@/lib/auth";
 import { getApiErrorMessage } from "@/lib/api";
 import { FIELD_LIMITS, loginSchema } from "@/lib/form-validation";
 import { useZodForm } from "@/lib/use-zod-form";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -44,7 +43,6 @@ function LoginPage() {
   const { errors, handleBlur, handleChange, validateAll } = useZodForm(loginSchema);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [show, setShow] = useState(false);
   const [remember, setRemember] = useState(true);
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -143,25 +141,14 @@ function LoginPage() {
               />
             </FormField>
             <FormField label="Password" htmlFor="password" error={errors.password} required>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={show ? "text" : "password"}
-                  autoComplete="current-password"
-                  value={password}
-                  {...fieldHandlers("password", setPassword)}
-                  placeholder="••••••••"
-                  className={cn("pr-10", fieldInputClass(errors.password))}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShow((s) => !s)}
-                  aria-label={show ? "Hide password" : "Show password"}
-                  className="absolute top-1/2 right-2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground hover:text-foreground"
-                >
-                  {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
+              <PasswordInput
+                id="password"
+                autoComplete="current-password"
+                value={password}
+                {...fieldHandlers("password", setPassword)}
+                placeholder="••••••••"
+                className={fieldInputClass(errors.password)}
+              />
             </FormField>
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 text-sm">

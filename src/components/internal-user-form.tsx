@@ -1,10 +1,21 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { FormActions } from "@/components/form-actions";
 import { fieldInputClass, focusFirstInvalidField, FormField } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fetchDepartments, fetchDesignations, fetchTeams } from "@/lib/org";
 import {
   internalUserSchema,
@@ -13,14 +24,17 @@ import {
   constrainMobileInput,
   constrainFreeTextInput,
   hasConsecutiveSpaces,
+  hasAnyWhitespace,
   constrainDdMmYyyyInput,
   isoToDdMmYyyy,
   ddMmYyyyToIso,
   isValidMobilePrefix,
 } from "@/lib/form-validation";
 import { useZodForm } from "@/lib/use-zod-form";
+import { PasswordInput } from "@/components/password";
 import { fetchEmployees } from "@/lib/users";
-import type { CreateInternalUserPayload, InternalUser, Role, UpdateInternalUserPayload } from "@/lib/types";
+import { fullName, type CreateInternalUserPayload, type InternalUser, type Role, type UpdateInternalUserPayload, type User } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface InternalUserFormProps {
   initial?: Partial<InternalUser>;
@@ -39,6 +53,99 @@ function FormSection({ title, description, children }: { title: string; descript
       </div>
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>
     </div>
+  );
+}
+
+function managerId(user: Pick<User, "id" | "_id">) {
+  return user.id || user._id || "";
+}
+
+function ReportingManagerSearch({
+  value,
+  onChange,
+  managers,
+  excludeIds,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  managers: User[];
+  excludeIds: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const eligible = useMemo(() => {
+    const active = managers.filter((manager) => {
+      const id = managerId(manager);
+      if (!id || excludeIds.includes(id)) return false;
+      return manager.status === "Active";
+    });
+    const selectedManager = managers.find((manager) => managerId(manager) === value);
+    if (selectedManager && !active.some((manager) => managerId(manager) === value)) {
+      return [selectedManager, ...active];
+    }
+    return active;
+  }, [managers, excludeIds, value]);
+  const selected = managers.find((manager) => managerId(manager) === value);
+
+  return (
+    <Popover modal open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-label="Reporting manager"
+          className="h-9 w-full justify-between font-normal"
+        >
+          <span className={cn("truncate", !selected && "text-muted-foreground")}>
+            {selected ? fullName(selected) : value ? "Selected manager" : "Search reporting manager"}
+          </span>
+          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="z-70 w-(--radix-popover-trigger-width) p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search by name, email or employee ID" />
+          <CommandList>
+            <CommandEmpty>No matching users found.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="none"
+                onSelect={() => {
+                  onChange("");
+                  setOpen(false);
+                }}
+              >
+                <Check className={cn("size-4", value ? "opacity-0" : "opacity-100")} />
+                None
+              </CommandItem>
+              {eligible.map((manager) => {
+                const id = managerId(manager);
+                const name = fullName(manager);
+                return (
+                  <CommandItem
+                    key={id}
+                    value={`${name} ${manager.email} ${manager.employeeId ?? ""} ${id}`}
+                    onSelect={() => {
+                      onChange(id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("size-4", value === id ? "opacity-100" : "opacity-0")} />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate">{name}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {[manager.employeeId, manager.email].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -101,18 +208,46 @@ export function InternalUserForm({
         let next = e.target.value;
         if (field === "firstName" || field === "lastName") {
           next = constrainPersonNameInput(next);
-        } else if (field === "address" || field === "employeeId" || field === "email") {
+          if (next.length > FIELD_LIMITS.NAME_MAX) {
+            setter(next.slice(0, FIELD_LIMITS.NAME_MAX));
+            handleBlur(field, next);
+            return;
+          }
+        } else if (field === "email") {
           next = constrainFreeTextInput(next);
         }
         setter(next);
-        if (hasConsecutiveSpaces(next)) {
+        if (field === "employeeId") {
+          if (next.length > 0 && (next.trim() === "" || hasAnyWhitespace(next))) {
+            handleBlur(field, next);
+            return;
+          }
+        } else if (field === "address") {
+          if (next.length > 0 && (next.trim() === "" || hasConsecutiveSpaces(next))) {
+            handleBlur(field, next);
+            return;
+          }
+        } else if (hasConsecutiveSpaces(next)) {
           handleBlur(field, next);
           return;
         }
         handleChange(field, next);
       },
       onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
-        const next = e.target.value.trim();
+        const raw = e.target.value;
+        if (field === "employeeId") {
+          if (raw.length > 0 && (raw.trim() === "" || hasAnyWhitespace(raw))) {
+            handleBlur(field, raw);
+            return;
+          }
+        }
+        if (field === "address") {
+          if (raw.length > 0 && (raw.trim() === "" || hasConsecutiveSpaces(raw))) {
+            handleBlur(field, raw);
+            return;
+          }
+        }
+        const next = raw.trim();
         setter(next);
         handleBlur(field, next);
       },
@@ -122,7 +257,6 @@ export function InternalUserForm({
   function onPhoneChange(raw: string) {
     const digits = constrainMobileInput(raw);
     if (!isValidMobilePrefix(digits)) {
-      setPhone("");
       handleBlur("phone", digits);
       return;
     }
@@ -147,8 +281,15 @@ export function InternalUserForm({
       return;
     }
     const input = event.currentTarget;
-    const selected = (input.selectionEnd ?? 0) - (input.selectionStart ?? 0);
-    if (phone.length >= FIELD_LIMITS.MOBILE_LENGTH && selected === 0) {
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    const nextDigits = `${phone.slice(0, start)}${event.key}${phone.slice(end)}`.replace(/\D/g, "");
+    if (nextDigits.length > 0 && !/^[6-9]/.test(nextDigits)) {
+      event.preventDefault();
+      handleBlur("phone", nextDigits);
+      return;
+    }
+    if (phone.length >= FIELD_LIMITS.MOBILE_LENGTH && end === start) {
       event.preventDefault();
     }
   }
@@ -192,6 +333,7 @@ export function InternalUserForm({
             "phone",
             "address",
             "employeeId",
+            "dateOfJoining",
           ]);
           return;
         }
@@ -204,6 +346,7 @@ export function InternalUserForm({
           address: validAddress,
           employeeId: validEmployeeId,
         } = validation.data;
+        const optionalOrNull = (value: string) => (value.trim() ? value : null);
         setSubmitting(true);
         try {
           if (mode === "create") {
@@ -228,14 +371,14 @@ export function InternalUserForm({
               lastName: validLastName,
               email: validEmail,
               phone: validPhone,
-              address: validAddress,
-              gender: gender || undefined,
-              employeeId: validEmployeeId || undefined,
+              address: optionalOrNull(validAddress),
+              gender: optionalOrNull(gender),
+              employeeId: optionalOrNull(validEmployeeId),
               departmentId: departmentId || undefined,
               designationId: designationId || undefined,
               teamId: teamId || undefined,
               reportingManagerId: reportingManagerId || null,
-              dateOfJoining: isoJoiningDate || undefined,
+              dateOfJoining: optionalOrNull(isoJoiningDate),
               role,
               status: status as UpdateInternalUserPayload["status"],
             });
@@ -251,7 +394,7 @@ export function InternalUserForm({
             id="firstName"
             value={firstName}
             {...fieldHandlers("firstName", setFirstName)}
-            maxLength={FIELD_LIMITS.NAME_MAX}
+            maxLength={FIELD_LIMITS.NAME_MAX + 1}
             aria-invalid={Boolean(errors.firstName)}
             aria-describedby={errors.firstName ? "firstName-error" : undefined}
             className={fieldInputClass(errors.firstName)}
@@ -262,7 +405,7 @@ export function InternalUserForm({
             id="lastName"
             value={lastName}
             {...fieldHandlers("lastName", setLastName)}
-            maxLength={FIELD_LIMITS.NAME_MAX}
+            maxLength={FIELD_LIMITS.NAME_MAX + 1}
             aria-invalid={Boolean(errors.lastName)}
             aria-describedby={errors.lastName ? "lastName-error" : undefined}
             className={fieldInputClass(errors.lastName)}
@@ -271,7 +414,10 @@ export function InternalUserForm({
         <FormField label="Email" htmlFor="email" error={errors.email} required>
           <Input
             id="email"
-            type="email"
+            type="text"
+            inputMode="email"
+            autoComplete="email"
+            spellCheck={false}
             maxLength={FIELD_LIMITS.EMAIL_MAX}
             value={email}
             {...fieldHandlers("email", setEmail)}
@@ -398,17 +544,12 @@ export function InternalUserForm({
         ) : null}
         <div className="grid gap-1.5">
           <Label>Reporting manager</Label>
-          <Select value={reportingManagerId || "none"} onValueChange={(v) => setReportingManagerId(v === "none" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Select manager" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              {(managersQuery.data ?? [])
-                .filter((m) => m.id !== initial?.id && m._id !== initial?._id)
-                .map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.name ?? `${m.firstName} ${m.lastName}`}</SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+          <ReportingManagerSearch
+            value={reportingManagerId}
+            onChange={setReportingManagerId}
+            managers={managersQuery.data ?? []}
+            excludeIds={[initial?.id, initial?._id].filter((id): id is string => Boolean(id))}
+          />
         </div>
       </FormSection>
 
@@ -437,10 +578,10 @@ export function InternalUserForm({
         {mode === "create" && (
           <div className="grid gap-1.5 sm:col-span-2">
             <Label>Temporary password</Label>
-            <Input
-              type="password"
+            <PasswordInput
               value={temporaryPassword}
               onChange={(e) => setTemporaryPassword(e.target.value)}
+              autoComplete="new-password"
               placeholder="Auto-generated if empty"
             />
             <p className="text-xs text-muted-foreground">An invitation email will be sent automatically.</p>

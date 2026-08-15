@@ -14,6 +14,7 @@ import { getApiErrorMessage } from "@/lib/api";
 import { isAdmin, useAuth } from "@/lib/auth";
 import {
   deleteInternalUser,
+  fetchInternalUser,
   fetchInternalUserOverview,
   resendInternalUserInvitation,
   resetInternalUserPassword,
@@ -21,6 +22,7 @@ import {
   updateInternalUserStatus,
 } from "@/lib/internal-users";
 import { formatDate } from "@/lib/store";
+import { fullName } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type UserTab = "information" | "account" | "projects" | "tickets";
@@ -64,6 +66,13 @@ function UserDetailPage() {
   const overviewQuery = useQuery({
     queryKey: ["internal-user-overview", userId],
     queryFn: () => fetchInternalUserOverview(userId),
+  });
+
+  const reportingManagerId = overviewQuery.data?.user.reportingManagerId ?? "";
+  const managerQuery = useQuery({
+    queryKey: ["internal-user", reportingManagerId],
+    queryFn: () => fetchInternalUser(reportingManagerId),
+    enabled: Boolean(reportingManagerId) && !overviewQuery.data?.user.reportingManagerName,
   });
 
   const statusMutation = useMutation({
@@ -111,6 +120,10 @@ function UserDetailPage() {
 
   const { user } = overviewQuery.data;
   const displayName = user.name ?? `${user.firstName} ${user.lastName}`;
+  const reportingManagerName =
+    user.reportingManagerName
+    || (managerQuery.data ? fullName(managerQuery.data) : "")
+    || (reportingManagerId && managerQuery.isLoading ? "Loading…" : "—");
 
   return (
     <div className="flex flex-col gap-5">
@@ -212,12 +225,13 @@ function UserDetailPage() {
               ["Full name", displayName],
               ["Email", user.email],
               ["Mobile", user.phone || "—"],
+              ["Address", user.address || "—"],
+              ["Gender", user.gender || "—"],
               ["Department", user.departmentName ?? user.department ?? "—"],
               ["Designation", user.designation || "—"],
               ["Team", user.teamName ?? "—"],
-              ["Reporting manager", user.reportingManagerName ?? "—"],
+              ["Reporting manager", reportingManagerName],
               ["Joining date", user.dateOfJoining ? formatDate(user.dateOfJoining) : "—"],
-              ["Role", user.role],
               ["Created", user.createdAt ? formatDate(user.createdAt) : "—"],
             ].map(([label, value]) => (
               <div key={label}>
@@ -233,7 +247,6 @@ function UserDetailPage() {
         <SectionCard title="Account settings">
           <dl className="grid gap-3 p-4 text-sm sm:grid-cols-2">
             {[
-              ["Login email", user.email],
               ["Role", user.role],
               ["Login status", user.loginEnabled === false ? "Disabled" : "Enabled"],
               ["Account status", user.status],

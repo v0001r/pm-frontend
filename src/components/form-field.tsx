@@ -79,7 +79,7 @@ interface FormFieldProps {
 export function FormField({ label, htmlFor, error, children, className, hint, required = false }: FormFieldProps) {
   return (
     <div className={cn("grid gap-1.5", className)}>
-      <FieldLabel htmlFor={htmlFor} required={required}>
+      <FieldLabel htmlFor={htmlFor} required={required} className="text-foreground">
         {label}
       </FieldLabel>
       {children}

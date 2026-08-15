@@ -4,7 +4,7 @@ import { fieldInputClass, FormField } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { contactFormSchema, FIELD_LIMITS } from "@/lib/form-validation";
+import { contactFormSchema, FIELD_LIMITS, constrainInternationalPhoneInput } from "@/lib/form-validation";
 import { useZodForm } from "@/lib/use-zod-form";
 import type { CreateContactPayload, CustomerContact, UpdateContactPayload } from "@/lib/types";
 
@@ -36,7 +36,10 @@ export function ContactForm({
   function fieldHandlers(field: string, setter: (value: string) => void) {
     return {
       onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
-        const next = event.target.value;
+        let next = event.target.value;
+        if (field === "mobile") {
+          next = constrainInternationalPhoneInput(next);
+        }
         setter(next);
         handleChange(field, next);
       },
@@ -105,7 +108,10 @@ export function ContactForm({
       <FormField label="Email" htmlFor="contact-email" error={errors.email} required>
         <Input
           id="contact-email"
-          type="email"
+          type="text"
+          inputMode="email"
+          autoComplete="email"
+          spellCheck={false}
           maxLength={FIELD_LIMITS.EMAIL_MAX}
           value={email}
           {...fieldHandlers("email", setEmail)}
@@ -116,10 +122,12 @@ export function ContactForm({
       <FormField label="Mobile" htmlFor="contact-mobile" error={errors.mobile}>
         <Input
           id="contact-mobile"
+          type="text"
+          inputMode="tel"
+          autoComplete="tel"
           value={mobile}
           {...fieldHandlers("mobile", setMobile)}
-          maxLength={FIELD_LIMITS.MOBILE_LENGTH + 4}
-          placeholder="9876543210"
+          placeholder="+14155552671"
           className={fieldInputClass(errors.mobile)}
         />
       </FormField>

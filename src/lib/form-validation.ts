@@ -4,7 +4,7 @@ import { passwordValid } from "@/components/password";
 export const FIELD_LIMITS = {
   EMAIL_MAX: 100,
   NAME_MIN: 3,
-  NAME_MAX: 50,
+  NAME_MAX: 75,
   TITLE_MIN: 3,
   TITLE_MAX: 100,
   SUBJECT_MIN: 3,
@@ -12,15 +12,26 @@ export const FIELD_LIMITS = {
   MOBILE_LENGTH: 10,
   MOBILE_REGEX: /^[6-9]\d{9}$/,
   NAME_REGEX: /^[A-Za-z]+(?: [A-Za-z]+)*$/,
-  // local@domain.tld — one domain label and a 2+ letter TLD (rejects adc@yopmail.com.co)
+  // local@domain.tld — one domain label and a 2+ letter TLD (rejects naveen@yopmail.com.co)
   EMAIL_REGEX: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}$/,
 } as const;
 
 export const EMAIL_INVALID_MESSAGE = "Please enter a valid email address.";
-export const CONSECUTIVE_SPACES_MESSAGE = "Please enter a valid value without consecutive spaces.";
+export const WEBSITE_INVALID_MESSAGE = "Please enter a valid website URL.";
+export const NAME_MAX_MESSAGE = "Maximum 75 characters are allowed.";
+export const WHITESPACE_INVALID_MESSAGE =
+  "Please enter a valid value. Empty or consecutive spaces are not allowed.";
+export const CONSECUTIVE_SPACES_MESSAGE = WHITESPACE_INVALID_MESSAGE;
+export const MOBILE_INVALID_MESSAGE = "Please enter a valid 10-digit mobile number.";
+export const INTERNATIONAL_PHONE_INVALID_MESSAGE = "Please enter a valid phone number.";
+export const MOBILE_LENGTH_ERROR = MOBILE_INVALID_MESSAGE;
 
-const MOBILE_ERROR = "Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9";
-export const MOBILE_LENGTH_ERROR = "Mobile number must be 10 digits.";
+const CUSTOMER_EMAIL_PATTERN =
+  /^[A-Za-z0-9._%+-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}$/;
+const KNOWN_TLDS = [
+  "com", "org", "net", "edu", "gov", "io", "co", "in", "uk", "us", "au", "ca", "de", "fr", "jp", "info", "biz", "me", "ai", "app", "dev",
+] as const;
+const INTERNATIONAL_PHONE_PATTERN = /^\+?[0-9][0-9\s\-().]*$/;
 
 export function getZodErrorMessage(error: z.ZodError): string {
   const preferred = error.issues.find((issue) => issue.message && issue.message !== "Invalid input");
@@ -36,7 +47,7 @@ export function normalizeMobileInput(value: string) {
 }
 
 export function constrainPersonNameInput(value: string) {
-  return value.replace(/[^A-Za-z ]/g, "").replace(/^ +/, "").slice(0, FIELD_LIMITS.NAME_MAX);
+  return value.replace(/[^A-Za-z ]/g, "").replace(/^ +/, "");
 }
 
 export function constrainFreeTextInput(value: string) {
@@ -44,11 +55,49 @@ export function constrainFreeTextInput(value: string) {
 }
 
 export function hasConsecutiveSpaces(value: string) {
-  return / {2,}/.test(value);
+  return /\s{2,}/.test(value);
+}
+
+export function hasAnyWhitespace(value: string) {
+  return /\s/.test(value);
+}
+
+export function constrainInternationalPhoneInput(value: string) {
+  let next = "";
+  for (const char of value) {
+    if (char === "+" && next.length === 0) {
+      next += char;
+      continue;
+    }
+    if (/[0-9\s\-().]/.test(char)) next += char;
+  }
+  return next;
 }
 
 export function constrainMobileInput(value: string) {
   return value.replace(/\D/g, "").slice(0, FIELD_LIMITS.MOBILE_LENGTH);
+}
+
+export function isValidCustomerEmail(value: string) {
+  const email = value.trim();
+  if (!CUSTOMER_EMAIL_PATTERN.test(email)) return false;
+  const tld = email.slice(email.lastIndexOf(".") + 1).toLowerCase();
+  return !KNOWN_TLDS.some((first) =>
+    KNOWN_TLDS.some((second) => first !== second && first + second === tld),
+  );
+}
+
+export function isValidWebsiteUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  try {
+    const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const url = new URL(candidate);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(url.hostname);
+  } catch {
+    return false;
+  }
 }
 
 export function isValidMobilePrefix(digits: string) {
@@ -132,28 +181,75 @@ export const optionalEmailField = z.union([
     }),
 ]);
 
+const customerEmailField = z
+  .string()
+  .trim()
+  .min(1, "Email is required")
+  .max(FIELD_LIMITS.EMAIL_MAX, "Email cannot exceed 100 characters")
+  .refine((value) => isValidCustomerEmail(value), { message: EMAIL_INVALID_MESSAGE });
+
+const optionalCustomerEmailField = z.union([
+  z.literal(""),
+  z
+    .string()
+    .trim()
+    .max(FIELD_LIMITS.EMAIL_MAX, "Email cannot exceed 100 characters")
+    .refine((value) => isValidCustomerEmail(value), { message: EMAIL_INVALID_MESSAGE }),
+]);
+
+const companyNameField = z
+  .string()
+  .refine((value) => !(value.length > 0 && value.trim() === ""), { message: WHITESPACE_INVALID_MESSAGE })
+  .refine((value) => value.trim().length > 0, { message: "Company name is required" })
+  .refine((value) => !/\s{2,}/.test(value), { message: WHITESPACE_INVALID_MESSAGE })
+  .transform((value) => value.trim());
+
+function internationalPhoneField(required = false) {
+  let schema = z.string().trim();
+  if (required) {
+    schema = schema.min(1, "Mobile number is required");
+  }
+  return schema.refine((value) => value === "" || INTERNATIONAL_PHONE_PATTERN.test(value), {
+    message: INTERNATIONAL_PHONE_INVALID_MESSAGE,
+  });
+}
+
+const optionalWebsiteField = z
+  .string()
+  .trim()
+  .refine((value) => isValidWebsiteUrl(value), { message: WEBSITE_INVALID_MESSAGE });
+
 function noConsecutiveSpaces(value: string) {
-  return value.trim() === "" || !/ {2,}/.test(value);
+  return value.trim() === "" || !/\s{2,}/.test(value);
 }
 
 const optionalTextField = z
   .string()
-  .refine(noConsecutiveSpaces, { message: CONSECUTIVE_SPACES_MESSAGE })
+  .refine((value) => !(value.length > 0 && value.trim() === ""), { message: WHITESPACE_INVALID_MESSAGE })
+  .refine(noConsecutiveSpaces, { message: WHITESPACE_INVALID_MESSAGE })
+  .transform((value) => value.trim());
+
+const employeeIdField = z
+  .string()
+  .refine((value) => value === "" || (!value.trim() ? false : !/\s/.test(value)), {
+    message: WHITESPACE_INVALID_MESSAGE,
+  })
   .transform((value) => value.trim());
 
 function personNameField(label = "Name", required = true) {
   const contentRules = z
     .string()
     .min(FIELD_LIMITS.NAME_MIN, `${label} must be at least 3 characters`)
-    .max(FIELD_LIMITS.NAME_MAX, `${label} cannot exceed 50 characters`)
+    .max(FIELD_LIMITS.NAME_MAX, NAME_MAX_MESSAGE)
     .refine((value) => FIELD_LIMITS.NAME_REGEX.test(value), {
       message: `${label} can only contain letters and spaces`,
     });
 
   const schema = z
     .string()
+    .refine((value) => !(value.length > 0 && value.trim() === ""), { message: WHITESPACE_INVALID_MESSAGE })
     .refine((value) => !required || value.trim().length > 0, { message: `${label} is required` })
-    .refine((value) => value.trim() === "" || !/ {2,}/.test(value), { message: CONSECUTIVE_SPACES_MESSAGE })
+    .refine((value) => value.trim() === "" || !/\s{2,}/.test(value), { message: WHITESPACE_INVALID_MESSAGE })
     .transform((value) => value.trim());
 
   if (required) {
@@ -186,15 +282,8 @@ function mobileField(required = true) {
 
   return schema
     .refine(
-      (value) => {
-        if (value === "") return true;
-        return normalizeMobileInput(value).length === FIELD_LIMITS.MOBILE_LENGTH;
-      },
-      { message: MOBILE_LENGTH_ERROR },
-    )
-    .refine(
       (value) => value === "" || FIELD_LIMITS.MOBILE_REGEX.test(normalizeMobileInput(value)),
-      { message: MOBILE_ERROR },
+      { message: MOBILE_INVALID_MESSAGE },
     )
     .transform((value) => (value === "" ? "" : normalizeMobileInput(value)));
 }
@@ -206,19 +295,21 @@ export const subjectField = z
   .max(FIELD_LIMITS.SUBJECT_MAX, "Subject cannot exceed 250 characters");
 
 export const customerCreateSchema = z.object({
-  companyName: z.string().trim().min(1, "Company name is required"),
-  email: optionalEmailField,
-  phone: mobileField(false),
+  companyName: companyNameField,
+  email: optionalCustomerEmailField,
+  phone: internationalPhoneField(false),
+  website: optionalWebsiteField,
   contactName: personNameField("Name"),
-  contactEmail: emailField,
-  contactMobile: mobileField(),
+  contactEmail: customerEmailField,
+  contactMobile: internationalPhoneField(false),
   contactTitle: titleField(false),
 });
 
 export const customerEditSchema = z.object({
-  companyName: z.string().trim().min(1, "Company name is required"),
-  email: optionalEmailField,
-  phone: mobileField(false),
+  companyName: companyNameField,
+  email: optionalCustomerEmailField,
+  phone: internationalPhoneField(false),
+  website: optionalWebsiteField,
 });
 
 export const projectFormSchema = z
@@ -240,8 +331,8 @@ export const projectFormSchema = z
 
 export const contactFormSchema = z.object({
   name: personNameField("Name"),
-  email: emailField,
-  mobile: mobileField(false),
+  email: customerEmailField,
+  mobile: internationalPhoneField(false),
   jobTitle: titleField(false),
 });
 
@@ -262,7 +353,7 @@ export const internalUserSchema = z.object({
   email: emailField,
   phone: mobileField(),
   address: optionalTextField,
-  employeeId: optionalTextField,
+  employeeId: employeeIdField,
 });
 
 export const profilePhoneSchema = z.object({

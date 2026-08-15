@@ -465,14 +465,14 @@ export interface UpdateInternalUserPayload {
   lastName?: string;
   email?: string;
   phone?: string;
-  address?: string;
-  gender?: string;
-  employeeId?: string;
+  address?: string | null;
+  gender?: string | null;
+  employeeId?: string | null;
   departmentId?: string;
   designationId?: string;
   teamId?: string;
   reportingManagerId?: string | null;
-  dateOfJoining?: string;
+  dateOfJoining?: string | null;
   role?: Role;
   status?: AccountStatus;
 }
