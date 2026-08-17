@@ -63,8 +63,8 @@ export function InternalUserFormSheet({ open, onOpenChange, mode, userId, onSave
                 invalidate(id);
                 toast.success(
                   createPayload.temporaryPassword
-                    ? "User created. They can sign in with the temporary password you set."
-                    : "User created. They can sign in with the temporary password from the invitation email (or backend log in dev).",
+                    ? "User created Succesfully."
+                    : "User created Succesfully.",
                 );
                 onOpenChange(false);
                 onSaved?.(id);
