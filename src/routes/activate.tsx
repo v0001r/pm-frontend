@@ -2,8 +2,8 @@ import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { fieldInputClass, FormField } from "@/components/form-field";
+import { PasswordInput } from "@/components/password";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GuestRoute } from "@/components/guard";
 import { PageHeader, SectionCard } from "@/components/primitives";
@@ -79,9 +79,9 @@ function ActivatePage() {
               </Alert>
             )}
             <FormField label="New password" htmlFor="password" error={errors.password} required>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -91,9 +91,9 @@ function ActivatePage() {
               />
             </FormField>
             <FormField label="Confirm password" htmlFor="confirm" error={errors.confirm} required>
-              <Input
+              <PasswordInput
                 id="confirm"
-                type="password"
+                autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => {
                   setConfirm(e.target.value);

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { z } from "zod";
 import { validateForm, getZodErrorMessage } from "./form-validation";
 
@@ -7,6 +7,10 @@ type FieldValues = Record<string, unknown>;
 export function useZodForm<T extends z.ZodObject<z.ZodRawShape>>(schema: T) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Set<string>>(() => new Set());
+  const errorsRef = useRef(errors);
+  const touchedRef = useRef(touched);
+  errorsRef.current = errors;
+  touchedRef.current = touched;
 
   const getFieldError = useCallback(
     (field: string, value: unknown): string | undefined => {
@@ -26,6 +30,7 @@ export function useZodForm<T extends z.ZodObject<z.ZodRawShape>>(schema: T) {
         const next = { ...current };
         if (message) next[field] = message;
         else delete next[field];
+        errorsRef.current = next;
         return next;
       });
     },
@@ -37,6 +42,7 @@ export function useZodForm<T extends z.ZodObject<z.ZodRawShape>>(schema: T) {
       if (current.has(field)) return current;
       const next = new Set(current);
       next.add(field);
+      touchedRef.current = next;
       return next;
     });
   }, []);
@@ -51,25 +57,38 @@ export function useZodForm<T extends z.ZodObject<z.ZodRawShape>>(schema: T) {
 
   const handleChange = useCallback(
     (field: string, value: unknown) => {
-      if (touched.has(field) || errors[field]) {
+      if (touchedRef.current.has(field) || errorsRef.current[field]) {
         setFieldError(field, value);
       }
     },
-    [touched, errors, setFieldError],
+    [setFieldError],
   );
+
+  const clearFieldError = useCallback((field: string) => {
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      errorsRef.current = next;
+      return next;
+    });
+  }, []);
 
   const validateAll = useCallback(
     (values: FieldValues) => {
       const result = validateForm(schema, values);
       if (result.success) {
+        errorsRef.current = {};
         setErrors({});
         return { success: true as const, data: result.data };
       }
 
+      errorsRef.current = result.errors;
       setErrors(result.errors);
       setTouched((current) => {
         const next = new Set(current);
         for (const key of Object.keys(result.errors)) next.add(key);
+        touchedRef.current = next;
         return next;
       });
       return { success: false as const, errors: result.errors };
@@ -81,6 +100,7 @@ export function useZodForm<T extends z.ZodObject<z.ZodRawShape>>(schema: T) {
     errors,
     handleBlur,
     handleChange,
+    clearFieldError,
     validateAll,
   };
 }

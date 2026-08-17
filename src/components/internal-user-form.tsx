@@ -1,15 +1,40 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { FormActions } from "@/components/form-actions";
-import { fieldInputClass, FormField } from "@/components/form-field";
+import { fieldInputClass, focusFirstInvalidField, FormField } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fetchDepartments, fetchDesignations, fetchTeams } from "@/lib/org";
-import { internalUserSchema, FIELD_LIMITS } from "@/lib/form-validation";
+import {
+  internalUserSchema,
+  FIELD_LIMITS,
+  constrainPersonNameInput,
+  constrainMobileInput,
+  constrainFreeTextInput,
+  hasConsecutiveSpaces,
+  hasAnyWhitespace,
+  constrainDdMmYyyyInput,
+  isoToDdMmYyyy,
+  ddMmYyyyToIso,
+  isValidMobilePrefix,
+} from "@/lib/form-validation";
 import { useZodForm } from "@/lib/use-zod-form";
+import { PasswordInput } from "@/components/password";
 import { fetchEmployees } from "@/lib/users";
-import type { CreateInternalUserPayload, InternalUser, Role, UpdateInternalUserPayload } from "@/lib/types";
+import { fullName, type CreateInternalUserPayload, type InternalUser, type Role, type UpdateInternalUserPayload, type User } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface InternalUserFormProps {
   initial?: Partial<InternalUser>;
@@ -28,6 +53,99 @@ function FormSection({ title, description, children }: { title: string; descript
       </div>
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>
     </div>
+  );
+}
+
+function managerId(user: Pick<User, "id" | "_id">) {
+  return user.id || user._id || "";
+}
+
+function ReportingManagerSearch({
+  value,
+  onChange,
+  managers,
+  excludeIds,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  managers: User[];
+  excludeIds: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const eligible = useMemo(() => {
+    const active = managers.filter((manager) => {
+      const id = managerId(manager);
+      if (!id || excludeIds.includes(id)) return false;
+      return manager.status === "Active";
+    });
+    const selectedManager = managers.find((manager) => managerId(manager) === value);
+    if (selectedManager && !active.some((manager) => managerId(manager) === value)) {
+      return [selectedManager, ...active];
+    }
+    return active;
+  }, [managers, excludeIds, value]);
+  const selected = managers.find((manager) => managerId(manager) === value);
+
+  return (
+    <Popover modal open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-label="Reporting manager"
+          className="h-9 w-full justify-between font-normal"
+        >
+          <span className={cn("truncate", !selected && "text-muted-foreground")}>
+            {selected ? fullName(selected) : value ? "Selected manager" : "Search reporting manager"}
+          </span>
+          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="z-70 w-(--radix-popover-trigger-width) p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search by name, email or employee ID" />
+          <CommandList>
+            <CommandEmpty>No matching users found.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="none"
+                onSelect={() => {
+                  onChange("");
+                  setOpen(false);
+                }}
+              >
+                <Check className={cn("size-4", value ? "opacity-0" : "opacity-100")} />
+                None
+              </CommandItem>
+              {eligible.map((manager) => {
+                const id = managerId(manager);
+                const name = fullName(manager);
+                return (
+                  <CommandItem
+                    key={id}
+                    value={`${name} ${manager.email} ${manager.employeeId ?? ""} ${id}`}
+                    onSelect={() => {
+                      onChange(id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("size-4", value === id ? "opacity-100" : "opacity-0")} />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate">{name}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {[manager.employeeId, manager.email].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -53,12 +171,13 @@ export function InternalUserForm({
   const [teamId, setTeamId] = useState(initial?.teamId ?? "");
   const [reportingManagerId, setReportingManagerId] = useState(initial?.reportingManagerId ?? "");
   const [dateOfJoining, setDateOfJoining] = useState(
-    initial?.dateOfJoining ? initial.dateOfJoining.slice(0, 10) : "",
+    initial?.dateOfJoining ? isoToDdMmYyyy(initial.dateOfJoining) : "",
   );
   const [role, setRole] = useState<Role>((initial?.role as Role) ?? "Staff");
   const [status, setStatus] = useState(initial?.status ?? "Active");
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [dateError, setDateError] = useState("");
 
   const departmentsQuery = useQuery({
     queryKey: ["departments"],
@@ -86,14 +205,110 @@ export function InternalUserForm({
   function fieldHandlers(field: string, setter: (value: string) => void) {
     return {
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-        const next = e.target.value;
+        let next = e.target.value;
+        if (field === "firstName" || field === "lastName") {
+          next = constrainPersonNameInput(next);
+          if (next.length > FIELD_LIMITS.NAME_MAX) {
+            setter(next.slice(0, FIELD_LIMITS.NAME_MAX));
+            handleBlur(field, next);
+            return;
+          }
+        } else if (field === "email") {
+          next = constrainFreeTextInput(next);
+        }
         setter(next);
+        if (field === "employeeId") {
+          if (next.length > 0 && (next.trim() === "" || hasAnyWhitespace(next))) {
+            handleBlur(field, next);
+            return;
+          }
+        } else if (field === "address") {
+          if (next.length > 0 && (next.trim() === "" || hasConsecutiveSpaces(next))) {
+            handleBlur(field, next);
+            return;
+          }
+        } else if (hasConsecutiveSpaces(next)) {
+          handleBlur(field, next);
+          return;
+        }
         handleChange(field, next);
       },
       onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
-        handleBlur(field, e.target.value);
+        const raw = e.target.value;
+        if (field === "employeeId") {
+          if (raw.length > 0 && (raw.trim() === "" || hasAnyWhitespace(raw))) {
+            handleBlur(field, raw);
+            return;
+          }
+        }
+        if (field === "address") {
+          if (raw.length > 0 && (raw.trim() === "" || hasConsecutiveSpaces(raw))) {
+            handleBlur(field, raw);
+            return;
+          }
+        }
+        const next = raw.trim();
+        setter(next);
+        handleBlur(field, next);
       },
     };
+  }
+
+  function onPhoneChange(raw: string) {
+    const digits = constrainMobileInput(raw);
+    if (!isValidMobilePrefix(digits)) {
+      handleBlur("phone", digits);
+      return;
+    }
+    setPhone(digits);
+    if (digits.length === FIELD_LIMITS.MOBILE_LENGTH) {
+      handleBlur("phone", digits);
+      return;
+    }
+    if (digits.length > 0 && errors["phone"]) {
+      handleBlur("phone", digits);
+      return;
+    }
+    handleChange("phone", digits);
+  }
+
+  function onPhoneKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const navigationKeys = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Home", "End"];
+    if (navigationKeys.includes(event.key)) return;
+    if (!/^\d$/.test(event.key)) {
+      event.preventDefault();
+      return;
+    }
+    const input = event.currentTarget;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    const nextDigits = `${phone.slice(0, start)}${event.key}${phone.slice(end)}`.replace(/\D/g, "");
+    if (nextDigits.length > 0 && !/^[6-9]/.test(nextDigits)) {
+      event.preventDefault();
+      handleBlur("phone", nextDigits);
+      return;
+    }
+    if (phone.length >= FIELD_LIMITS.MOBILE_LENGTH && end === start) {
+      event.preventDefault();
+    }
+  }
+
+  function onPhonePaste(event: React.ClipboardEvent<HTMLInputElement>) {
+    event.preventDefault();
+    onPhoneChange(event.clipboardData.getData("text"));
+  }
+
+  function onJoiningDateChange(raw: string) {
+    const next = constrainDdMmYyyyInput(raw);
+    setDateOfJoining(next);
+    if (!dateError) return;
+    setDateError(next === "" || ddMmYyyyToIso(next) ? "" : "Please enter a valid date as DD-MM-YYYY");
+  }
+
+  function joiningDateIso() {
+    if (!dateOfJoining.trim()) return "";
+    return ddMmYyyyToIso(dateOfJoining);
   }
 
   return (
@@ -102,11 +317,36 @@ export function InternalUserForm({
       noValidate
       onSubmit={async (event) => {
         event.preventDefault();
-        const validation = validateAll({ firstName, lastName, email, phone });
-        if (!validation.success) return;
+        const isoJoiningDate = joiningDateIso();
+        if (dateOfJoining.trim() && !isoJoiningDate) {
+          setDateError("Please enter a valid date as DD-MM-YYYY");
+          focusFirstInvalidField({ dateOfJoining: "invalid" }, ["dateOfJoining"]);
+          return;
+        }
+        setDateError("");
+        const validation = validateAll({ firstName, lastName, email, phone, address, employeeId });
+        if (!validation.success) {
+          focusFirstInvalidField(validation.errors, [
+            "firstName",
+            "lastName",
+            "email",
+            "phone",
+            "address",
+            "employeeId",
+            "dateOfJoining",
+          ]);
+          return;
+        }
 
-        const { firstName: validFirstName, lastName: validLastName, email: validEmail, phone: validPhone } =
-          validation.data;
+        const {
+          firstName: validFirstName,
+          lastName: validLastName,
+          email: validEmail,
+          phone: validPhone,
+          address: validAddress,
+          employeeId: validEmployeeId,
+        } = validation.data;
+        const optionalOrNull = (value: string) => (value.trim() ? value : null);
         setSubmitting(true);
         try {
           if (mode === "create") {
@@ -115,11 +355,11 @@ export function InternalUserForm({
               lastName: validLastName,
               email: validEmail,
               phone: validPhone,
-              address: address.trim() || undefined,
+              address: validAddress || undefined,
               gender: gender || undefined,
-              employeeId: employeeId.trim() || undefined,
+              employeeId: validEmployeeId || undefined,
               reportingManagerId: reportingManagerId || undefined,
-              dateOfJoining: dateOfJoining || undefined,
+              dateOfJoining: isoJoiningDate || undefined,
               role,
               status: status as CreateInternalUserPayload["status"],
               temporaryPassword: temporaryPassword.trim() || undefined,
@@ -131,14 +371,14 @@ export function InternalUserForm({
               lastName: validLastName,
               email: validEmail,
               phone: validPhone,
-              address: address.trim(),
-              gender: gender || undefined,
-              employeeId: employeeId.trim() || undefined,
+              address: optionalOrNull(validAddress),
+              gender: optionalOrNull(gender),
+              employeeId: optionalOrNull(validEmployeeId),
               departmentId: departmentId || undefined,
               designationId: designationId || undefined,
               teamId: teamId || undefined,
               reportingManagerId: reportingManagerId || null,
-              dateOfJoining: dateOfJoining || undefined,
+              dateOfJoining: optionalOrNull(isoJoiningDate),
               role,
               status: status as UpdateInternalUserPayload["status"],
             });
@@ -149,44 +389,71 @@ export function InternalUserForm({
       }}
     >
       <FormSection title="Personal information" description="Name, email and contact details">
-        <FormField label="First name" error={errors.firstName} required>
+        <FormField label="First name" htmlFor="firstName" error={errors.firstName} required>
           <Input
+            id="firstName"
             value={firstName}
             {...fieldHandlers("firstName", setFirstName)}
-            maxLength={FIELD_LIMITS.NAME_MAX}
+            maxLength={FIELD_LIMITS.NAME_MAX + 1}
+            aria-invalid={Boolean(errors.firstName)}
+            aria-describedby={errors.firstName ? "firstName-error" : undefined}
             className={fieldInputClass(errors.firstName)}
           />
         </FormField>
-        <FormField label="Last name" error={errors.lastName} required>
+        <FormField label="Last name" htmlFor="lastName" error={errors.lastName} required>
           <Input
+            id="lastName"
             value={lastName}
             {...fieldHandlers("lastName", setLastName)}
-            maxLength={FIELD_LIMITS.NAME_MAX}
+            maxLength={FIELD_LIMITS.NAME_MAX + 1}
+            aria-invalid={Boolean(errors.lastName)}
+            aria-describedby={errors.lastName ? "lastName-error" : undefined}
             className={fieldInputClass(errors.lastName)}
           />
         </FormField>
-        <FormField label="Email" error={errors.email} required>
+        <FormField label="Email" htmlFor="email" error={errors.email} required>
           <Input
-            type="email"
+            id="email"
+            type="text"
+            inputMode="email"
+            autoComplete="email"
+            spellCheck={false}
             maxLength={FIELD_LIMITS.EMAIL_MAX}
             value={email}
             {...fieldHandlers("email", setEmail)}
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "email-error" : undefined}
             className={fieldInputClass(errors.email)}
           />
         </FormField>
-        <FormField label="Mobile" error={errors.phone} required>
+        <FormField label="Mobile" htmlFor="phone" error={errors.phone} required>
           <Input
+            id="phone"
+            type="text"
+            inputMode="numeric"
+            autoComplete="tel"
             value={phone}
-            {...fieldHandlers("phone", setPhone)}
-            maxLength={FIELD_LIMITS.MOBILE_LENGTH + 4}
+            onChange={(e) => onPhoneChange(e.target.value)}
+            onKeyDown={onPhoneKeyDown}
+            onPaste={onPhonePaste}
+            onBlur={() => handleBlur("phone", phone)}
+            maxLength={FIELD_LIMITS.MOBILE_LENGTH}
             placeholder="9876543210"
+            aria-invalid={Boolean(errors.phone)}
+            aria-describedby={errors.phone ? "phone-error" : undefined}
             className={fieldInputClass(errors.phone)}
           />
         </FormField>
-        <div className="grid gap-1.5 sm:col-span-2">
-          <Label>Address</Label>
-          <Input value={address} onChange={(e) => setAddress(e.target.value)} />
-        </div>
+        <FormField label="Address" htmlFor="address" error={errors["address"]} className="sm:col-span-2">
+          <Input
+            id="address"
+            value={address}
+            {...fieldHandlers("address", setAddress)}
+            aria-invalid={Boolean(errors["address"])}
+            aria-describedby={errors["address"] ? "address-error" : undefined}
+            className={fieldInputClass(errors["address"])}
+          />
+        </FormField>
         <div className="grid gap-1.5">
           <Label>Gender</Label>
           <Select value={gender || "none"} onValueChange={(v) => setGender(v === "none" ? "" : v)}>
@@ -205,19 +472,44 @@ export function InternalUserForm({
         title="Job details"
         description={isEdit ? "Department, team and reporting structure" : "Employee details and reporting structure"}
       >
-        <div className="grid gap-1.5">
-          <Label>Employee ID</Label>
-          <Input value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} placeholder="Auto-generated if empty" />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>Date of joining</Label>
-          <Input type="date" value={dateOfJoining} onChange={(e) => setDateOfJoining(e.target.value)} />
-        </div>
+        <FormField label="Employee ID" htmlFor="employeeId" error={errors["employeeId"]}>
+          <Input
+            id="employeeId"
+            value={employeeId}
+            {...fieldHandlers("employeeId", setEmployeeId)}
+            placeholder="Auto-generated if empty"
+            aria-invalid={Boolean(errors["employeeId"])}
+            aria-describedby={errors["employeeId"] ? "employeeId-error" : undefined}
+            className={fieldInputClass(errors["employeeId"])}
+          />
+        </FormField>
+        <FormField label="Date of joining" htmlFor="dateOfJoining" error={dateError || undefined}>
+          <Input
+            id="dateOfJoining"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="DD-MM-YYYY"
+            maxLength={10}
+            value={dateOfJoining}
+            onChange={(e) => onJoiningDateChange(e.target.value)}
+            onBlur={() => {
+              if (!dateOfJoining.trim()) {
+                setDateError("");
+                return;
+              }
+              setDateError(ddMmYyyyToIso(dateOfJoining) ? "" : "Please enter a valid date as DD-MM-YYYY");
+            }}
+            aria-invalid={Boolean(dateError)}
+            aria-describedby={dateError ? "dateOfJoining-error" : undefined}
+            className={fieldInputClass(dateError || undefined)}
+          />
+        </FormField>
         {isEdit ? (
           <>
             <div className="grid gap-1.5">
               <Label>Department</Label>
-              <Select value={departmentId} onValueChange={setDepartmentId}>
+              <Select value={departmentId} onValueChange={setDepartmentId} disabled>
                 <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                 <SelectContent>
                   {(departmentsQuery.data ?? []).map((d) => (
@@ -228,7 +520,7 @@ export function InternalUserForm({
             </div>
             <div className="grid gap-1.5">
               <Label>Designation</Label>
-              <Select value={designationId} onValueChange={setDesignationId} disabled={!departmentId}>
+              <Select value={designationId} onValueChange={setDesignationId} disabled>
                 <SelectTrigger><SelectValue placeholder="Select designation" /></SelectTrigger>
                 <SelectContent>
                   {(designationsQuery.data ?? []).map((d) => (
@@ -239,7 +531,7 @@ export function InternalUserForm({
             </div>
             <div className="grid gap-1.5">
               <Label>Team</Label>
-              <Select value={teamId} onValueChange={setTeamId} disabled={!departmentId}>
+              <Select value={teamId} onValueChange={setTeamId} disabled>
                 <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
                 <SelectContent>
                   {(teamsQuery.data ?? []).map((t) => (
@@ -252,17 +544,12 @@ export function InternalUserForm({
         ) : null}
         <div className="grid gap-1.5">
           <Label>Reporting manager</Label>
-          <Select value={reportingManagerId || "none"} onValueChange={(v) => setReportingManagerId(v === "none" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Select manager" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              {(managersQuery.data ?? [])
-                .filter((m) => m.id !== initial?.id && m._id !== initial?._id)
-                .map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.name ?? `${m.firstName} ${m.lastName}`}</SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+          <ReportingManagerSearch
+            value={reportingManagerId}
+            onChange={setReportingManagerId}
+            managers={managersQuery.data ?? []}
+            excludeIds={[initial?.id, initial?._id].filter((id): id is string => Boolean(id))}
+          />
         </div>
       </FormSection>
 
@@ -291,10 +578,10 @@ export function InternalUserForm({
         {mode === "create" && (
           <div className="grid gap-1.5 sm:col-span-2">
             <Label>Temporary password</Label>
-            <Input
-              type="password"
+            <PasswordInput
               value={temporaryPassword}
               onChange={(e) => setTemporaryPassword(e.target.value)}
+              autoComplete="new-password"
               placeholder="Auto-generated if empty"
             />
             <p className="text-xs text-muted-foreground">An invitation email will be sent automatically.</p>

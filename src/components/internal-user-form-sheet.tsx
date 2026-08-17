@@ -23,10 +23,12 @@ export function InternalUserFormSheet({ open, onOpenChange, mode, userId, onSave
     enabled: mode === "edit" && !!userId && open,
   });
 
-  const invalidate = (id: string) => {
-    queryClient.invalidateQueries({ queryKey: ["internal-users"] });
-    queryClient.invalidateQueries({ queryKey: ["internal-user", id] });
-    queryClient.invalidateQueries({ queryKey: ["internal-user-overview", id] });
+  const invalidate = async (id: string) => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["internal-users"] }),
+      queryClient.invalidateQueries({ queryKey: ["internal-user", id] }),
+      queryClient.invalidateQueries({ queryKey: ["internal-user-overview", id] }),
+    ]);
   };
 
   const displayName =
@@ -60,17 +62,22 @@ export function InternalUserFormSheet({ open, onOpenChange, mode, userId, onSave
                 const createPayload = payload as CreateInternalUserPayload;
                 const user = await createInternalUser(createPayload);
                 const id = user.id ?? user._id!;
-                invalidate(id);
+                await invalidate(id);
                 toast.success(
                   createPayload.temporaryPassword
+<<<<<<< HEAD
                     ? "User created Succesfully."
                     : "User created Succesfully.",
+=======
+                    ? "User created. They can sign in with the temporary password you set."
+                    : "User created. They can sign in with the temporary password from the invitation email.",
+>>>>>>> d05f269c494f8bb88a001379dda7ee124bc5e25a
                 );
                 onOpenChange(false);
                 onSaved?.(id);
               } else if (userId) {
                 await updateInternalUser(userId, payload as UpdateInternalUserPayload);
-                invalidate(userId);
+                await invalidate(userId);
                 toast.success("User updated.");
                 onOpenChange(false);
                 onSaved?.(userId);
