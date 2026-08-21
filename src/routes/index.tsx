@@ -11,11 +11,16 @@ import { fieldInputClass, FormField } from "@/components/form-field";
 import { PasswordInput } from "@/components/password";
 import { useAuth, homeFor } from "@/lib/auth";
 import { getApiErrorMessage } from "@/lib/api";
+import { sanitizeReturnTo, SESSION_EXPIRED_MESSAGE } from "@/lib/session-expiry";
 import { FIELD_LIMITS, loginSchema } from "@/lib/form-validation";
 import { useZodForm } from "@/lib/use-zod-form";
 
 export const Route = createFileRoute("/")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+    expired: search.expired === "1" || search.expired === "true",
+  }),
   head: () => ({
     meta: [
       { title: "Sign in — Helpdesk Support Portal" },
@@ -40,6 +45,7 @@ const demoAccounts = [
 function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { redirect, expired } = Route.useSearch();
   const { errors, handleBlur, handleChange, validateAll } = useZodForm(loginSchema);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,7 +77,8 @@ function LoginPage() {
     setLoading(true);
     try {
       const user = await login(validEmail, validPassword, remember);
-      navigate({ to: homeFor(user.role), replace: true });
+      const destination = sanitizeReturnTo(redirect) ?? homeFor(user.role);
+      navigate({ to: destination, replace: true });
     } catch (err) {
       setApiError(getApiErrorMessage(err, "Unable to sign in."));
     } finally {
@@ -119,6 +126,11 @@ function LoginPage() {
           <p className="mt-2 text-[15px] text-muted-foreground">Access your support workspace.</p>
 
           <form onSubmit={onSubmit} className="panel mt-8 flex flex-col gap-5 p-6" noValidate>
+            {expired && (
+              <Alert variant="destructive">
+                <AlertDescription>{SESSION_EXPIRED_MESSAGE}</AlertDescription>
+              </Alert>
+            )}
             {apiError && (
               <Alert variant="destructive">
                 <AlertDescription>{apiError}</AlertDescription>

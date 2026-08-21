@@ -31,6 +31,7 @@ import { InternalUserFormSheet } from "@/components/internal-user-form-sheet";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { getApiErrorMessage } from "@/lib/api";
+import { canAdminResetPassword } from "@/lib/user-activation";
 import {
   deleteInternalUser,
   fetchInternalUsers,
@@ -262,7 +263,10 @@ function UsersPage() {
                         <DropdownMenuItem onClick={() => inviteMutation.mutate(user.id ?? user._id!)}>
                           Resend invitation
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => resetMutation.mutate(user.id ?? user._id!)}>
+                        <DropdownMenuItem
+                          disabled={!canAdminResetPassword(user.invitationStatus)}
+                          onClick={() => resetMutation.mutate(user.id ?? user._id!)}
+                        >
                           Reset password
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />

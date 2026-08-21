@@ -81,7 +81,7 @@ export async function resendInternalUserInvitation(id: string) {
 }
 
 export async function resetInternalUserPassword(id: string) {
-  const { data } = await api.post<ApiResponse<{ invitationId: string; expiresAt: string; email: string }>>(
+  const { data } = await api.post<ApiResponse<{ message: string }>>(
     `/users/${id}/reset-password`,
   );
   return data.data;

@@ -1,0 +1,1 @@
+import{b as e}from"./button-CIquMOOB.js";async function t(){let{data:t}=await e.get(`/departments`);return t.data}async function n(t){let{data:n}=await e.get(`/designations`,{params:t?{departmentId:t}:void 0});return n.data}async function r(t){let{data:n}=await e.get(`/teams`,{params:t?{departmentId:t}:void 0});return n.data}export{n,r,t};

@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth, homeFor } from "@/lib/auth";
+import { buildLoginSearch, getCurrentReturnTo, isSessionExpiryInFlight } from "@/lib/session-expiry";
 import { AppShell } from "@/components/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Role } from "@/lib/types";
@@ -18,17 +19,23 @@ function AuthLoading() {
 export function RequireRole({ roles, children }: { roles: Role[]; children: ReactNode }) {
   const { user, ready } = useAuth();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   useEffect(() => {
     if (!ready) return;
     if (!user) {
-      navigate({ to: "/", replace: true });
+      if (isSessionExpiryInFlight()) return;
+      void navigate({
+        to: "/",
+        replace: true,
+        search: buildLoginSearch({ redirect: getCurrentReturnTo() }),
+      });
       return;
     }
     if (!roles.includes(user.role)) {
-      navigate({ to: "/unauthorized", replace: true });
+      void navigate({ to: "/unauthorized", replace: true });
     }
-  }, [ready, user, roles, navigate]);
+  }, [ready, user, roles, navigate, pathname]);
 
   if (!ready || !user || !roles.includes(user.role)) {
     return <AuthLoading />;
@@ -43,7 +50,14 @@ export function AuthenticatedRoute({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
-    if (!user) navigate({ to: "/", replace: true });
+    if (!user) {
+      if (isSessionExpiryInFlight()) return;
+      void navigate({
+        to: "/",
+        replace: true,
+        search: buildLoginSearch({ redirect: getCurrentReturnTo() }),
+      });
+    }
   }, [ready, user, navigate]);
 
   if (!ready || !user) return <AuthLoading />;

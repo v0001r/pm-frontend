@@ -1,10 +1,17 @@
 import { useState } from "react";
 import { FormActions } from "@/components/form-actions";
-import { fieldInputClass, FormField } from "@/components/form-field";
+import { fieldInputClass, focusFirstInvalidField, FormField } from "@/components/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { contactFormSchema, FIELD_LIMITS, constrainInternationalPhoneInput } from "@/lib/form-validation";
+import {
+  contactFormSchema,
+  FIELD_LIMITS,
+  constrainContactMobileInput,
+  constrainPersonNameInput,
+  mapContactApiFieldErrors,
+} from "@/lib/form-validation";
+import { getApiFieldErrors } from "@/lib/api";
 import { useZodForm } from "@/lib/use-zod-form";
 import type { CreateContactPayload, CustomerContact, UpdateContactPayload } from "@/lib/types";
 
@@ -23,7 +30,7 @@ export function ContactForm({
   onCancel,
   submitLabel = mode === "create" ? "Add contact" : "Save changes",
 }: ContactFormProps) {
-  const { errors, handleBlur, handleChange, validateAll } = useZodForm(contactFormSchema);
+  const { errors, handleBlur, handleChange, setFieldErrors, validateAll } = useZodForm(contactFormSchema);
 
   const [name, setName] = useState(initial?.name ?? "");
   const [jobTitle, setJobTitle] = useState(initial?.jobTitle ?? "");
@@ -37,14 +44,25 @@ export function ContactForm({
     return {
       onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
         let next = event.target.value;
-        if (field === "mobile") {
-          next = constrainInternationalPhoneInput(next);
+        if (field === "name") {
+          next = constrainPersonNameInput(next);
+          if (next.length > FIELD_LIMITS.NAME_MAX) {
+            setter(next.slice(0, FIELD_LIMITS.NAME_MAX));
+            handleBlur(field, next);
+            return;
+          }
+        } else if (field === "mobile") {
+          next = constrainContactMobileInput(next);
         }
         setter(next);
         handleChange(field, next);
       },
       onBlur: (event: React.FocusEvent<HTMLInputElement>) => {
-        handleBlur(field, event.target.value);
+        const next = field === "name" ? event.target.value.trim() : event.target.value;
+        if (field === "name") {
+          setter(next);
+        }
+        handleBlur(field, next);
       },
     };
   }
@@ -56,7 +74,10 @@ export function ContactForm({
       onSubmit={async (event) => {
         event.preventDefault();
         const validation = validateAll({ name, email, mobile, jobTitle });
-        if (!validation.success) return;
+        if (!validation.success) {
+          focusFirstInvalidField(validation.errors, ["name", "jobTitle", "email", "mobile"]);
+          return;
+        }
 
         const data = validation.data;
         setSubmitting(true);
@@ -79,6 +100,14 @@ export function ContactForm({
               portalAccess,
             });
           }
+        } catch (error) {
+          const fieldErrors = mapContactApiFieldErrors(getApiFieldErrors(error));
+          if (Object.keys(fieldErrors).length > 0) {
+            setFieldErrors(fieldErrors);
+            focusFirstInvalidField(fieldErrors, ["name", "jobTitle", "email", "mobile"]);
+            return;
+          }
+          throw error;
         } finally {
           setSubmitting(false);
         }
@@ -89,7 +118,9 @@ export function ContactForm({
           id="contact-name"
           value={name}
           {...fieldHandlers("name", setName)}
-          maxLength={FIELD_LIMITS.NAME_MAX}
+          maxLength={FIELD_LIMITS.NAME_MAX + 1}
+          aria-invalid={Boolean(errors.name)}
+          aria-describedby={errors.name ? "contact-name-error" : undefined}
           className={fieldInputClass(errors.name)}
         />
       </FormField>
@@ -101,6 +132,8 @@ export function ContactForm({
           {...fieldHandlers("jobTitle", setJobTitle)}
           maxLength={FIELD_LIMITS.TITLE_MAX}
           placeholder="Operations Manager"
+          aria-invalid={Boolean(errors.jobTitle)}
+          aria-describedby={errors.jobTitle ? "contact-title-error" : undefined}
           className={fieldInputClass(errors.jobTitle)}
         />
       </FormField>
@@ -115,6 +148,8 @@ export function ContactForm({
           maxLength={FIELD_LIMITS.EMAIL_MAX}
           value={email}
           {...fieldHandlers("email", setEmail)}
+          aria-invalid={Boolean(errors.email)}
+          aria-describedby={errors.email ? "contact-email-error" : undefined}
           className={fieldInputClass(errors.email)}
         />
       </FormField>
@@ -125,9 +160,12 @@ export function ContactForm({
           type="text"
           inputMode="tel"
           autoComplete="tel"
+          maxLength={FIELD_LIMITS.MOBILE_MAX_DIGITS}
           value={mobile}
           {...fieldHandlers("mobile", setMobile)}
-          placeholder="+14155552671"
+          placeholder="9876543210"
+          aria-invalid={Boolean(errors.mobile)}
+          aria-describedby={errors.mobile ? "contact-mobile-error" : undefined}
           className={fieldInputClass(errors.mobile)}
         />
       </FormField>

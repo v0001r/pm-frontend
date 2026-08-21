@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { CustomerForm } from "@/components/customer-form";
 import { FormSheet } from "@/components/form-sheet";
 import { TableSkeleton } from "@/components/primitives";
-import { getApiErrorMessage } from "@/lib/api";
+import { getApiErrorMessage, getApiFieldErrors } from "@/lib/api";
 import { createCustomer, fetchCustomer, updateCustomer } from "@/lib/customers";
 import type { CreateCustomerPayload, UpdateCustomerPayload } from "@/lib/types";
 
@@ -69,7 +69,9 @@ export function CustomerFormSheet({ open, onOpenChange, mode, customerId, onSave
                 onSaved?.(customerId);
               }
             } catch (error) {
-              toast.error(getApiErrorMessage(error, mode === "create" ? "Failed to create customer" : "Failed to update customer"));
+              if (Object.keys(getApiFieldErrors(error)).length === 0) {
+                toast.error(getApiErrorMessage(error, mode === "create" ? "Failed to create customer" : "Failed to update customer"));
+              }
               throw error;
             }
           }}

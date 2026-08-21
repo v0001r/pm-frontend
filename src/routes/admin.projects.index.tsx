@@ -36,6 +36,7 @@ import { deleteProject, fetchProjects } from "@/lib/projects";
 import { formatDate } from "@/lib/store";
 import { PROJECT_STATUSES, type ProjectStatus } from "@/lib/types";
 import { getApiErrorMessage } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 interface ProjectSearch {
   page?: number;
@@ -254,17 +255,19 @@ function ProjectsPage() {
             }
           />
         ) : (
-          <Table className="min-w-6xl">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
+          <>
+            <div className="overflow-x-auto">
+              <Table className={cn("min-w-6xl", isFetching && !isLoading && "opacity-70")}>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
                 {TABLE_COLUMNS.map((heading) => (
                   <DataTableHead key={heading} className={heading === "Action" ? "text-right" : undefined} sortable={heading !== "Action"}>
                     {heading}
                   </DataTableHead>
                 ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
               {items.map((project) => {
                 const progressTone =
                   project.status === "Open"
@@ -335,20 +338,22 @@ function ProjectsPage() {
                 );
               })}
             </TableBody>
-          </Table>
-        )}
+              </Table>
+            </div>
 
-        {!isLoading && items.length > 0 && meta && (
-          <DataTablePagination
-            page={currentPage}
-            limit={meta.limit}
-            total={meta.total}
-            totalPages={totalPages}
-            entityLabel="projects"
-            isFetching={isFetching && !isLoading}
-            onPageChange={setPage}
-            onLimitChange={setLimit}
-          />
+            {meta && meta.total > 0 ? (
+              <DataTablePagination
+                page={currentPage}
+                limit={meta.limit}
+                total={meta.total}
+                totalPages={totalPages}
+                entityLabel="projects"
+                isFetching={isFetching && !isLoading}
+                onPageChange={setPage}
+                onLimitChange={setLimit}
+              />
+            ) : null}
+          </>
         )}
       </ListingPage>
 

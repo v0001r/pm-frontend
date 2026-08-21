@@ -29,10 +29,12 @@ import {
   isoToDdMmYyyy,
   ddMmYyyyToIso,
   isValidMobilePrefix,
+  mapInternalUserApiFieldErrors,
 } from "@/lib/form-validation";
 import { useZodForm } from "@/lib/use-zod-form";
 import { PasswordInput } from "@/components/password";
 import { fetchEmployees } from "@/lib/users";
+import { getApiFieldErrors } from "@/lib/api";
 import { fullName, type CreateInternalUserPayload, type InternalUser, type Role, type UpdateInternalUserPayload, type User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -157,7 +159,7 @@ export function InternalUserForm({
   submitLabel = mode === "create" ? "Create user" : "Save changes",
 }: InternalUserFormProps) {
   const isEdit = mode === "edit";
-  const { errors, handleBlur, handleChange, validateAll } = useZodForm(internalUserSchema);
+  const { errors, handleBlur, handleChange, setFieldErrors, validateAll } = useZodForm(internalUserSchema);
 
   const [firstName, setFirstName] = useState(initial?.firstName ?? "");
   const [lastName, setLastName] = useState(initial?.lastName ?? "");
@@ -383,6 +385,22 @@ export function InternalUserForm({
               status: status as UpdateInternalUserPayload["status"],
             });
           }
+        } catch (error) {
+          const fieldErrors = mapInternalUserApiFieldErrors(getApiFieldErrors(error));
+          if (Object.keys(fieldErrors).length > 0) {
+            setFieldErrors(fieldErrors);
+            focusFirstInvalidField(fieldErrors, [
+              "firstName",
+              "lastName",
+              "email",
+              "phone",
+              "address",
+              "employeeId",
+              "dateOfJoining",
+            ]);
+            return;
+          }
+          throw error;
         } finally {
           setSubmitting(false);
         }

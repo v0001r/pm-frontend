@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { notifySessionExpired } from "./session-expiry";
 import type { ApiResponse, AuthTokens, User } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001/api";
@@ -137,7 +138,7 @@ api.interceptors.response.use(
     const newToken = await refreshPromise;
     if (!newToken) {
       clearTokens();
-      window.dispatchEvent(new Event("auth:logout"));
+      notifySessionExpired();
       return Promise.reject(error);
     }
 
@@ -154,6 +155,30 @@ export function getApiErrorMessage(error: unknown, fallback = "Something went wr
   }
   if (error instanceof Error) return error.message;
   return fallback;
+}
+
+export function getApiFieldErrors(error: unknown): Record<string, string> {
+  if (!axios.isAxiosError(error)) {
+    return {};
+  }
+
+  const data = error.response?.data as { fieldErrors?: Record<string, string> } | undefined;
+  if (!data?.fieldErrors || typeof data.fieldErrors !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(data.fieldErrors).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  );
+}
+
+export function getApiErrorCode(error: unknown): string | undefined {
+  if (!axios.isAxiosError(error)) {
+    return undefined;
+  }
+
+  const data = error.response?.data as { errorCode?: string } | undefined;
+  return typeof data?.errorCode === "string" ? data.errorCode : undefined;
 }
 
 export type { LoginResponseData };

@@ -151,3 +151,25 @@ export async function resetPassword(token: string, password: string) {
   });
   return data.data.message;
 }
+
+export interface ActivationTokenValidation {
+  valid: boolean;
+  status: "valid" | "invalid" | "expired" | "used";
+  accountType?: "customer" | "staff";
+  expiresAt?: string;
+  expiresInHours?: number;
+  message?: string;
+  errorCode?: string;
+}
+
+export async function validateActivationToken(token: string) {
+  const { data } = await api.get<ApiResponse<ActivationTokenValidation>>("/auth/activate/validate", {
+    params: { token },
+  });
+  return data.data;
+}
+
+export async function activateAccount(token: string, password: string) {
+  const { data } = await api.post<ApiResponse<{ message: string }>>("/auth/activate", { token, password });
+  return data.data.message;
+}

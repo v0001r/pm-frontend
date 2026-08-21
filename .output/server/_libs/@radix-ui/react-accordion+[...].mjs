@@ -1529,4 +1529,4 @@ var Header = AccordionHeader;
 var Trigger2 = AccordionTrigger;
 var Content2 = AccordionContent;
 //#endregion
-export { require_jsx_runtime as S, createContextScope as _, Trigger2 as a, createSlottable as b, Root as c, useControllableState as d, Presence as f, dispatchDiscreteCustomEvent as g, Primitive as h, Root2 as i, useDirection as l, useLayoutEffect2 as m, Header as n, CollapsibleContent as o, useId as p, Item as r, CollapsibleTrigger as s, Content2 as t, createCollection as u, Slot as v, useComposedRefs as x, createSlot as y };
+export { require_jsx_runtime as C, useComposedRefs as S, createContextScope as _, Trigger2 as a, createSlottable as b, Root as c, useControllableState as d, Presence as f, dispatchDiscreteCustomEvent as g, Primitive as h, Root2 as i, useDirection as l, useLayoutEffect2 as m, Header as n, CollapsibleContent as o, useId as p, Item as r, CollapsibleTrigger as s, Content2 as t, createCollection as u, Slot as v, composeRefs as x, createSlot as y };

@@ -64,6 +64,11 @@ export function useZodForm<T extends z.ZodObject<z.ZodRawShape>>(schema: T) {
     [setFieldError],
   );
 
+  const clearAllErrors = useCallback(() => {
+    errorsRef.current = {};
+    setErrors({});
+  }, []);
+
   const clearFieldError = useCallback((field: string) => {
     setErrors((current) => {
       if (!current[field]) return current;
@@ -96,11 +101,24 @@ export function useZodForm<T extends z.ZodObject<z.ZodRawShape>>(schema: T) {
     [schema],
   );
 
+  const setFieldErrors = useCallback((nextErrors: Record<string, string>) => {
+    errorsRef.current = nextErrors;
+    setErrors(nextErrors);
+    setTouched((current) => {
+      const next = new Set(current);
+      for (const key of Object.keys(nextErrors)) next.add(key);
+      touchedRef.current = next;
+      return next;
+    });
+  }, []);
+
   return {
     errors,
     handleBlur,
     handleChange,
     clearFieldError,
+    clearAllErrors,
+    setFieldErrors,
     validateAll,
   };
 }

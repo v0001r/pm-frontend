@@ -23,6 +23,7 @@ import {
 } from "@/lib/internal-users";
 import { formatDate } from "@/lib/store";
 import { fullName } from "@/lib/types";
+import { canAdminResetPassword } from "@/lib/user-activation";
 import { cn } from "@/lib/utils";
 
 type UserTab = "information" | "account" | "projects" | "tickets";
@@ -101,7 +102,10 @@ function UserDetailPage() {
 
   const resetMutation = useMutation({
     mutationFn: () => resetInternalUserPassword(userId),
-    onSuccess: () => toast.success("Password reset sent."),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["internal-user-overview", userId] });
+      toast.success("Password reset sent.");
+    },
     onError: (err) => toast.error(getApiErrorMessage(err, "Failed to reset password")),
   });
 
@@ -120,6 +124,7 @@ function UserDetailPage() {
 
   const { user } = overviewQuery.data;
   const displayName = user.name ?? `${user.firstName} ${user.lastName}`;
+  const passwordResetAllowed = canAdminResetPassword(user.invitationStatus);
   const reportingManagerName =
     user.reportingManagerName
     || (managerQuery.data ? fullName(managerQuery.data) : "")
@@ -262,7 +267,17 @@ function UserDetailPage() {
           </dl>
           {isAdmin(currentUser?.role) && (
             <div className="flex flex-wrap gap-2 border-t p-4">
-              <Button size="sm" variant="outline" disabled={resetMutation.isPending} onClick={() => resetMutation.mutate()}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={resetMutation.isPending || !passwordResetAllowed}
+                title={
+                  passwordResetAllowed
+                    ? undefined
+                    : "Password reset is available after the user completes account activation."
+                }
+                onClick={() => resetMutation.mutate()}
+              >
                 <KeyRound className="size-4" /> Reset password
               </Button>
               <Button

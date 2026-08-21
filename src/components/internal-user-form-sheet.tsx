@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { FormSheet } from "@/components/form-sheet";
 import { InternalUserForm } from "@/components/internal-user-form";
 import { TableSkeleton } from "@/components/primitives";
-import { getApiErrorMessage } from "@/lib/api";
+import { getApiErrorMessage, getApiFieldErrors } from "@/lib/api";
 import { createInternalUser, fetchInternalUser, updateInternalUser } from "@/lib/internal-users";
 import type { CreateInternalUserPayload, UpdateInternalUserPayload } from "@/lib/types";
 
@@ -65,13 +65,8 @@ export function InternalUserFormSheet({ open, onOpenChange, mode, userId, onSave
                 await invalidate(id);
                 toast.success(
                   createPayload.temporaryPassword
-<<<<<<< HEAD
                     ? "User created Succesfully."
                     : "User created Succesfully.",
-=======
-                    ? "User created. They can sign in with the temporary password you set."
-                    : "User created. They can sign in with the temporary password from the invitation email.",
->>>>>>> d05f269c494f8bb88a001379dda7ee124bc5e25a
                 );
                 onOpenChange(false);
                 onSaved?.(id);
@@ -83,7 +78,9 @@ export function InternalUserFormSheet({ open, onOpenChange, mode, userId, onSave
                 onSaved?.(userId);
               }
             } catch (error) {
-              toast.error(getApiErrorMessage(error, mode === "create" ? "Failed to create user" : "Failed to update user"));
+              if (Object.keys(getApiFieldErrors(error)).length === 0) {
+                toast.error(getApiErrorMessage(error, mode === "create" ? "Failed to create user" : "Failed to update user"));
+              }
               throw error;
             }
           }}

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ComponentPropsWithoutRef, type ReactNode, forwardRef } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, ChevronsUpDown, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -353,31 +353,43 @@ export function DataTableMoreButton({ children }: { children: ReactNode }) {
   return <DataTableRowMenu>{children}</DataTableRowMenu>;
 }
 
-export function DataTableIconButton({
-  children,
-  label,
-  onClick,
-  asChild,
-}: {
-  children: ReactNode;
-  label: string;
-  onClick?: () => void;
-  asChild?: boolean;
-}) {
-  const className = actionButtonClassName;
+export const DataTableIconButton = forwardRef<
+  HTMLButtonElement,
+  ComponentPropsWithoutRef<typeof Button> & {
+    label: string;
+    asChild?: boolean;
+  }
+>(function DataTableIconButton({ children, label, onClick, asChild, className, ...props }, ref) {
+  const buttonClassName = cn(actionButtonClassName, className);
   if (asChild) {
     return (
-      <Button variant="ghost" size="icon" className={className} asChild aria-label={label}>
+      <Button
+        ref={ref}
+        variant="ghost"
+        size="icon"
+        className={buttonClassName}
+        asChild
+        aria-label={label}
+        {...props}
+      >
         {children}
       </Button>
     );
   }
   return (
-    <Button variant="ghost" size="icon" className={className} onClick={onClick} aria-label={label}>
+    <Button
+      ref={ref}
+      variant="ghost"
+      size="icon"
+      className={buttonClassName}
+      onClick={onClick}
+      aria-label={label}
+      {...props}
+    >
       {children}
     </Button>
   );
-}
+});
 
 /* ── Re-export table primitives with premium defaults ───── */
 

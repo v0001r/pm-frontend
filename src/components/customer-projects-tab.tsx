@@ -30,6 +30,7 @@ import { ProjectFormSheet } from "@/components/project-form-sheet";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { getApiErrorMessage } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { isStaff, useAuth } from "@/lib/auth";
 import { fetchProjects } from "@/lib/projects";
 import { formatDate } from "@/lib/store";
@@ -194,7 +195,9 @@ export function CustomerProjectsTab({ customerId }: { customerId: string }) {
             }
           />
         ) : (
-          <Table className="min-w-6xl">
+          <>
+            <div className="overflow-x-auto">
+              <Table className={cn("min-w-6xl", isFetching && !isLoading && "opacity-70")}>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 {TABLE_COLUMNS.map((heading) => (
@@ -260,20 +263,22 @@ export function CustomerProjectsTab({ customerId }: { customerId: string }) {
                 );
               })}
             </TableBody>
-          </Table>
-        )}
+              </Table>
+            </div>
 
-        {!isLoading && items.length > 0 && meta && (
-          <DataTablePagination
-            page={currentPage}
-            limit={meta.limit}
-            total={meta.total}
-            totalPages={totalPages}
-            entityLabel="projects"
-            isFetching={isFetching && !isLoading}
-            onPageChange={setPage}
-            onLimitChange={setLimit}
-          />
+            {meta && meta.total > 0 ? (
+              <DataTablePagination
+                page={currentPage}
+                limit={meta.limit}
+                total={meta.total}
+                totalPages={totalPages}
+                entityLabel="projects"
+                isFetching={isFetching && !isLoading}
+                onPageChange={setPage}
+                onLimitChange={setLimit}
+              />
+            ) : null}
+          </>
         )}
       </ListingPage>
 

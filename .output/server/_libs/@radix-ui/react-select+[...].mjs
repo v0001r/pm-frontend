@@ -1,6 +1,6 @@
 import { o as __toESM } from "../../_runtime.mjs";
 import { l as require_react_dom, u as require_react } from "../@floating-ui/react-dom+[...].mjs";
-import { S as require_jsx_runtime, _ as createContextScope, d as useControllableState, f as Presence, h as Primitive, l as useDirection, m as useLayoutEffect2, p as useId, u as createCollection, x as useComposedRefs, y as createSlot } from "./react-accordion+[...].mjs";
+import { C as require_jsx_runtime, S as useComposedRefs, _ as createContextScope, d as useControllableState, f as Presence, h as Primitive, l as useDirection, m as useLayoutEffect2, p as useId, u as createCollection, y as createSlot } from "./react-accordion+[...].mjs";
 import { t as composeEventHandlers } from "../radix-ui__primitive.mjs";
 import { C as DismissableLayer, S as useFocusGuards, b as Portal, v as ReactRemoveScroll, w as useCallbackRef, x as FocusScope, y as hideOthers } from "./react-alert-dialog+[...].mjs";
 import { _ as Content, g as Anchor, v as Root2, y as createPopperScope } from "./react-dropdown-menu+[...].mjs";

@@ -1,0 +1,828 @@
+import { o as __toESM } from "../_runtime.mjs";
+import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
+import { C as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
+import { c as cn } from "./button-Du-Bk9Wl.mjs";
+import { Q as Circle, lt as Check, ot as ChevronRight } from "../_libs/lucide-react.mjs";
+import { _ as fullName } from "./primitives-BE889lfB.mjs";
+import { a as Label2, c as Root2, d as SubTrigger2, f as Trigger, i as ItemIndicator2, l as Separator2, n as Content2, o as Portal2, r as Item2, s as RadioItem2, t as CheckboxItem2, u as SubContent2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
+import { i as Trigger$1, n as Portal, r as Root2$1, t as Content2$1 } from "../_libs/radix-ui__react-popover.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/store-Cwl19Diw.js
+var import_react = /* @__PURE__ */ __toESM(require_react());
+var import_jsx_runtime = require_jsx_runtime();
+var Popover = Root2$1;
+var PopoverTrigger = Trigger$1;
+var PopoverContent = import_react.forwardRef(({ className, align = "center", sideOffset = 4, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portal, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Content2$1, {
+	ref,
+	align,
+	sideOffset,
+	className: cn("z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-popover-content-transform-origin)", className),
+	...props
+}) }));
+PopoverContent.displayName = Content2$1.displayName;
+var DropdownMenu = Root2;
+var DropdownMenuTrigger = Trigger;
+var DropdownMenuSubTrigger = import_react.forwardRef(({ className, inset, children, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SubTrigger2, {
+	ref,
+	className: cn("flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent data-[state=open]:bg-accent [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0", inset && "pl-8", className),
+	...props,
+	children: [children, /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronRight, { className: "ml-auto" })]
+}));
+DropdownMenuSubTrigger.displayName = SubTrigger2.displayName;
+var DropdownMenuSubContent = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SubContent2, {
+	ref,
+	className: cn("z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-dropdown-menu-content-transform-origin)", className),
+	...props
+}));
+DropdownMenuSubContent.displayName = SubContent2.displayName;
+var DropdownMenuContent = import_react.forwardRef(({ className, sideOffset = 4, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portal2, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Content2, {
+	ref,
+	sideOffset,
+	className: cn("z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md", "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-dropdown-menu-content-transform-origin)", className),
+	...props
+}) }));
+DropdownMenuContent.displayName = Content2.displayName;
+var DropdownMenuItem = import_react.forwardRef(({ className, inset, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Item2, {
+	ref,
+	className: cn("relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0", inset && "pl-8", className),
+	...props
+}));
+DropdownMenuItem.displayName = Item2.displayName;
+var DropdownMenuCheckboxItem = import_react.forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CheckboxItem2, {
+	ref,
+	className: cn("relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50", className),
+	...props,
+	children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+		className: "absolute left-2 flex h-3.5 w-3.5 items-center justify-center",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ItemIndicator2, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, { className: "h-4 w-4" }) })
+	}), children]
+}));
+DropdownMenuCheckboxItem.displayName = CheckboxItem2.displayName;
+var DropdownMenuRadioItem = import_react.forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(RadioItem2, {
+	ref,
+	className: cn("relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50", className),
+	...props,
+	children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+		className: "absolute left-2 flex h-3.5 w-3.5 items-center justify-center",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ItemIndicator2, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Circle, { className: "h-2 w-2 fill-current" }) })
+	}), children]
+}));
+DropdownMenuRadioItem.displayName = RadioItem2.displayName;
+var DropdownMenuLabel = import_react.forwardRef(({ className, inset, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label2, {
+	ref,
+	className: cn("px-2 py-1.5 text-sm font-semibold", inset && "pl-8", className),
+	...props
+}));
+DropdownMenuLabel.displayName = Label2.displayName;
+var DropdownMenuSeparator = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Separator2, {
+	ref,
+	className: cn("-mx-1 my-1 h-px bg-muted", className),
+	...props
+}));
+DropdownMenuSeparator.displayName = Separator2.displayName;
+var DropdownMenuShortcut = ({ className, ...props }) => {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+		className: cn("ml-auto text-xs tracking-widest opacity-60", className),
+		...props
+	});
+};
+DropdownMenuShortcut.displayName = "DropdownMenuShortcut";
+var TICKET_CATEGORIES = [
+	{
+		id: "c1",
+		name: "Change",
+		description: "Change requests and configuration updates",
+		active: true
+	},
+	{
+		id: "c2",
+		name: "General Support",
+		description: "General questions and assistance",
+		active: true
+	},
+	{
+		id: "c3",
+		name: "Technical Issue",
+		description: "Product faults and technical errors",
+		active: true
+	}
+];
+var DAY = 864e5;
+var HOUR = 36e5;
+var BASE = (/* @__PURE__ */ new Date("2026-08-04T09:00:00Z")).getTime();
+var iso = (msAgo) => new Date(BASE - msAgo).toISOString();
+var categories = TICKET_CATEGORIES.map((category) => ({ ...category }));
+var users = [
+	{
+		id: "u1",
+		firstName: "Bhushan",
+		lastName: "Yadav",
+		email: "admin@helpdesk.io",
+		role: "Admin",
+		status: "Active",
+		phone: "+91 98200 41122",
+		designation: "Head of Support",
+		department: "Customer Success",
+		timeZone: "Asia/Kolkata",
+		avatarHue: 265,
+		lastLogin: iso(2 * HOUR),
+		createdAt: iso(700 * DAY)
+	},
+	{
+		id: "u2",
+		firstName: "Elena",
+		lastName: "Rossi",
+		email: "elena@helpdesk.io",
+		role: "Staff",
+		status: "Active",
+		phone: "+39 331 552 8890",
+		designation: "Senior Support Engineer",
+		department: "Tier 2",
+		timeZone: "Europe/Rome",
+		avatarHue: 155,
+		lastLogin: iso(5 * HOUR),
+		createdAt: iso(420 * DAY)
+	},
+	{
+		id: "u3",
+		firstName: "Marcus",
+		lastName: "Bell",
+		email: "marcus@helpdesk.io",
+		role: "Staff",
+		status: "Active",
+		phone: "+1 415 220 7781",
+		designation: "Support Engineer",
+		department: "Tier 1",
+		timeZone: "America/Los_Angeles",
+		avatarHue: 62,
+		lastLogin: iso(28 * HOUR),
+		createdAt: iso(260 * DAY)
+	},
+	{
+		id: "u4",
+		firstName: "Priya",
+		lastName: "Nair",
+		email: "priya@helpdesk.io",
+		role: "Staff",
+		status: "Inactive",
+		phone: "+91 90040 11923",
+		designation: "Billing Specialist",
+		department: "Finance Support",
+		timeZone: "Asia/Kolkata",
+		avatarHue: 25,
+		lastLogin: iso(19 * DAY),
+		createdAt: iso(180 * DAY)
+	},
+	{
+		id: "u10",
+		firstName: "Brooklyn",
+		lastName: "Zoe",
+		email: "client@acme.com",
+		role: "Client",
+		status: "Active",
+		phone: "+1 212 771 0192",
+		designation: "IT Manager",
+		company: "Acme Industries",
+		timeZone: "America/New_York",
+		avatarHue: 235,
+		lastLogin: iso(3 * HOUR),
+		createdAt: iso(310 * DAY)
+	},
+	{
+		id: "u11",
+		firstName: "John",
+		lastName: "McCormick",
+		email: "john@northwind.com",
+		role: "Client",
+		status: "Active",
+		phone: "+1 646 118 2233",
+		designation: "Operations Lead",
+		company: "Northwind Trading",
+		timeZone: "America/Chicago",
+		avatarHue: 200,
+		lastLogin: iso(30 * HOUR),
+		createdAt: iso(240 * DAY)
+	},
+	{
+		id: "u12",
+		firstName: "Sandra",
+		lastName: "Pugh",
+		email: "sandra@vertexlabs.io",
+		role: "Client",
+		status: "Active",
+		phone: "+44 7700 900211",
+		designation: "Product Owner",
+		company: "Vertex Labs",
+		timeZone: "Europe/London",
+		avatarHue: 320,
+		lastLogin: iso(9 * HOUR),
+		createdAt: iso(150 * DAY)
+	},
+	{
+		id: "u13",
+		firstName: "Mark",
+		lastName: "Clark",
+		email: "mark@bluepeak.co",
+		role: "Client",
+		status: "Inactive",
+		phone: "+1 917 442 6610",
+		designation: "Finance Director",
+		company: "BluePeak Co",
+		timeZone: "America/New_York",
+		avatarHue: 110,
+		lastLogin: iso(45 * DAY),
+		createdAt: iso(95 * DAY)
+	},
+	{
+		id: "u14",
+		firstName: "Rebekah",
+		lastName: "Foster",
+		email: "rebekah@lumen.dev",
+		role: "Client",
+		status: "Active",
+		phone: "+1 503 887 4410",
+		designation: "Engineering Manager",
+		company: "Lumen Dev",
+		timeZone: "America/Los_Angeles",
+		avatarHue: 15,
+		lastLogin: iso(6 * HOUR),
+		createdAt: iso(60 * DAY)
+	}
+];
+var subjects = [
+	[
+		"SSO login fails for the finance group",
+		"c3",
+		"Critical",
+		"In Progress",
+		"u10"
+	],
+	[
+		"Invoice #INV-8823 charged twice",
+		"c2",
+		"High",
+		"Assigned",
+		"u11"
+	],
+	[
+		"Export to CSV times out over 50k rows",
+		"c3",
+		"High",
+		"In Progress",
+		"u12"
+	],
+	[
+		"Request access to the staging environment",
+		"c1",
+		"Low",
+		"Resolved",
+		"u10"
+	],
+	[
+		"Dashboard widgets render blank on Safari",
+		"c3",
+		"Medium",
+		"New",
+		"u14"
+	],
+	[
+		"Add bulk reassignment for tickets",
+		"c1",
+		"Low",
+		"Assigned",
+		"u12"
+	],
+	[
+		"Password reset email never arrives",
+		"c2",
+		"High",
+		"Resolved",
+		"u11"
+	],
+	[
+		"API returns 500 on /v2/orders",
+		"c3",
+		"Critical",
+		"In Progress",
+		"u14"
+	],
+	[
+		"Clarify annual plan proration",
+		"c2",
+		"Low",
+		"Closed",
+		"u13"
+	],
+	[
+		"Webhook signature mismatch after key rotation",
+		"c3",
+		"High",
+		"Assigned",
+		"u12"
+	],
+	[
+		"Two seats missing after upgrade",
+		"c2",
+		"Medium",
+		"In Progress",
+		"u10"
+	],
+	[
+		"Mobile app crashes on ticket attachment",
+		"c3",
+		"Critical",
+		"Assigned",
+		"u14"
+	],
+	[
+		"Enable audit log export",
+		"c1",
+		"Medium",
+		"New",
+		"u11"
+	],
+	[
+		"User cannot be deactivated",
+		"c3",
+		"Medium",
+		"Resolved",
+		"u12"
+	],
+	[
+		"Update billing contact details",
+		"c2",
+		"Low",
+		"Closed",
+		"u10"
+	],
+	[
+		"Rate limit reached unexpectedly",
+		"c3",
+		"High",
+		"In Progress",
+		"u11"
+	],
+	[
+		"Request read-only analytics role",
+		"c1",
+		"Low",
+		"Assigned",
+		"u14"
+	],
+	[
+		"Attachments over 10 MB are rejected",
+		"c3",
+		"Medium",
+		"In Progress",
+		"u12"
+	],
+	[
+		"Timezone shown incorrectly in reports",
+		"c3",
+		"Low",
+		"Resolved",
+		"u10"
+	],
+	[
+		"Ticket notifications duplicated",
+		"c3",
+		"Medium",
+		"Assigned",
+		"u11"
+	],
+	[
+		"Onboarding walkthrough for new agents",
+		"c2",
+		"Low",
+		"Closed",
+		"u12"
+	],
+	[
+		"Refund not reflected on statement",
+		"c2",
+		"High",
+		"In Progress",
+		"u14"
+	],
+	[
+		"SAML metadata refresh required",
+		"c1",
+		"Medium",
+		"New",
+		"u10"
+	],
+	[
+		"Search returns stale ticket titles",
+		"c3",
+		"Medium",
+		"Assigned",
+		"u11"
+	]
+];
+var agents = [
+	"u2",
+	"u3",
+	"u4"
+];
+function makeTickets() {
+	return subjects.map(([subject, categoryId, priority, status, clientId], i) => {
+		const createdAgo = (i * 7 + 3) * HOUR;
+		const updatedAgo = Math.max(1, createdAgo - i % 5 * HOUR - HOUR);
+		const slaHours = priority === "Critical" ? 4 : priority === "High" ? 12 : priority === "Medium" ? 24 : 72;
+		const resolved = status === "Resolved" || status === "Closed";
+		return {
+			id: `t${i + 1}`,
+			number: `TKT-${String(101 + i).padStart(3, "0")}`,
+			subject,
+			description: "Detailed reproduction steps and environment information were supplied by the client at submission time. Support has full context on the affected workspace, plan tier and impacted users.",
+			clientId,
+			categoryId,
+			priority,
+			status,
+			assignedTo: status === "New" ? null : agents[i % agents.length],
+			tags: i % 3 === 0 ? ["escalated"] : i % 4 === 0 ? ["billing", "vip"] : [],
+			createdAt: iso(createdAgo),
+			updatedAt: iso(updatedAgo),
+			dueAt: new Date(BASE - createdAgo + slaHours * HOUR).toISOString(),
+			resolvedAt: resolved ? iso(updatedAgo) : null,
+			closedAt: status === "Closed" ? iso(updatedAgo) : null
+		};
+	});
+}
+function makeMessages(tickets) {
+	const out = [];
+	tickets.forEach((t, i) => {
+		out.push({
+			id: `${t.id}-m1`,
+			ticketId: t.id,
+			authorId: t.clientId,
+			body: t.description,
+			isInternal: false,
+			createdAt: t.createdAt,
+			attachments: i % 4 === 0 ? [{
+				name: "console-log.txt",
+				size: "48 KB"
+			}] : []
+		});
+		if (t.assignedTo) {
+			out.push({
+				id: `${t.id}-m2`,
+				ticketId: t.id,
+				authorId: t.assignedTo,
+				body: "Thanks for the detailed report — I've reproduced this on our side and raised it with engineering. I'll keep you posted here as we progress.",
+				isInternal: false,
+				attachments: [],
+				createdAt: new Date(new Date(t.createdAt).getTime() + 2 * HOUR).toISOString()
+			});
+			out.push({
+				id: `${t.id}-m3`,
+				ticketId: t.id,
+				authorId: t.assignedTo,
+				body: "Internal: linked to ENG-4471. Customer is on the Enterprise plan — keep SLA visibility high.",
+				isInternal: true,
+				attachments: [],
+				createdAt: new Date(new Date(t.createdAt).getTime() + 3 * HOUR).toISOString()
+			});
+		}
+	});
+	return out;
+}
+function makeEvents(tickets) {
+	return tickets.flatMap((t) => [{
+		id: `${t.id}-e1`,
+		ticketId: t.id,
+		actorId: t.clientId,
+		description: `Ticket ${t.number} created with ${t.priority} priority`,
+		createdAt: t.createdAt
+	}, ...t.assignedTo ? [{
+		id: `${t.id}-e2`,
+		ticketId: t.id,
+		actorId: "u1",
+		description: `Assigned to ${fullName(users.find((u) => u.id === t.assignedTo))}`,
+		createdAt: new Date(new Date(t.createdAt).getTime() + HOUR).toISOString()
+	}, {
+		id: `${t.id}-e3`,
+		ticketId: t.id,
+		actorId: t.assignedTo,
+		description: `Status changed to ${t.status}`,
+		createdAt: t.updatedAt
+	}] : []]);
+}
+function makeNotifications() {
+	return [
+		[
+			"u1",
+			"New critical ticket",
+			"TKT-108 was created by Rebekah Foster",
+			"ticket"
+		],
+		[
+			"u1",
+			"Client replied",
+			"John McCormick replied on TKT-102",
+			"reply"
+		],
+		[
+			"u1",
+			"SLA breach risk",
+			"TKT-101 is approaching its resolution deadline",
+			"status"
+		],
+		[
+			"u1",
+			"Ticket reopened",
+			"Mark Clark reopened TKT-109",
+			"status"
+		],
+		[
+			"u10",
+			"Ticket created",
+			"Your ticket TKT-101 has been created successfully",
+			"ticket"
+		],
+		[
+			"u10",
+			"Support replied",
+			"Elena Rossi replied to TKT-101",
+			"reply"
+		],
+		[
+			"u10",
+			"Status updated",
+			"TKT-104 was marked as Resolved",
+			"status"
+		],
+		[
+			"u10",
+			"Security",
+			"Your password was changed successfully",
+			"security"
+		]
+	].map(([userId, title, message, type], i) => ({
+		id: `n${i + 1}`,
+		userId,
+		title,
+		message,
+		type,
+		read: i > 5,
+		createdAt: iso((i + 1) * 3 * HOUR)
+	}));
+}
+function makeAudit() {
+	return [
+		[
+			"u1",
+			"Login",
+			"Authentication",
+			"Signed in from Chrome on macOS"
+		],
+		[
+			"u2",
+			"Ticket updated",
+			"Tickets",
+			"Changed status of TKT-101 to In Progress"
+		],
+		[
+			"u1",
+			"Ticket assigned",
+			"Tickets",
+			"Assigned TKT-108 to Marcus Bell"
+		],
+		[
+			"u1",
+			"Client created",
+			"Clients",
+			"Created client account for Lumen Dev"
+		],
+		[
+			"u3",
+			"Priority changed",
+			"Tickets",
+			"Raised TKT-112 to Critical"
+		],
+		[
+			"u1",
+			"Client deactivated",
+			"Clients",
+			"Deactivated BluePeak Co"
+		],
+		[
+			"u1",
+			"Password reset",
+			"Security",
+			"Triggered password reset for john@northwind.com"
+		],
+		[
+			"u2",
+			"Logout",
+			"Authentication",
+			"Session ended"
+		],
+		[
+			"u1",
+			"Admin created",
+			"Support Team",
+			"Added agent Priya Nair"
+		],
+		[
+			"u3",
+			"Ticket created",
+			"Tickets",
+			"Created TKT-123 on behalf of client"
+		]
+	].map(([userId, action, module, description], i) => ({
+		id: `a${i + 1}`,
+		userId,
+		action,
+		module,
+		description,
+		ip: `10.24.${8 + i}.${40 + i * 3}`,
+		createdAt: iso((i + 1) * 5 * HOUR)
+	}));
+}
+var initialTickets = makeTickets();
+var state = {
+	tickets: initialTickets,
+	messages: makeMessages(initialTickets),
+	events: makeEvents(initialTickets),
+	notifications: makeNotifications(),
+	audit: makeAudit(),
+	users,
+	categories
+};
+var listeners = /* @__PURE__ */ new Set();
+var emit = () => listeners.forEach((l) => l());
+function subscribe(l) {
+	listeners.add(l);
+	return () => listeners.delete(l);
+}
+function useStore(selector) {
+	return (0, import_react.useSyncExternalStore)(subscribe, () => selector(state), () => selector(state));
+}
+function set(patch) {
+	state = {
+		...state,
+		...patch
+	};
+	emit();
+}
+var now = () => (/* @__PURE__ */ new Date()).toISOString();
+var rid = () => Math.random().toString(36).slice(2, 10);
+var actions = {
+	createTicket(input) {
+		const seq = 101 + state.tickets.length;
+		const slaHours = input.priority === "Critical" ? 4 : input.priority === "High" ? 12 : input.priority === "Medium" ? 24 : 72;
+		const ticket = {
+			id: `t${rid()}`,
+			number: `TKT-${String(seq).padStart(3, "0")}`,
+			subject: input.subject,
+			description: input.description,
+			clientId: input.clientId,
+			categoryId: input.categoryId,
+			priority: input.priority,
+			status: "New",
+			assignedTo: null,
+			tags: [],
+			createdAt: now(),
+			updatedAt: now(),
+			dueAt: new Date(Date.now() + slaHours * HOUR).toISOString(),
+			resolvedAt: null,
+			closedAt: null
+		};
+		set({
+			tickets: [ticket, ...state.tickets],
+			messages: [...state.messages, {
+				id: rid(),
+				ticketId: ticket.id,
+				authorId: input.clientId,
+				body: input.description,
+				isInternal: false,
+				createdAt: now(),
+				attachments: input.attachments
+			}],
+			events: [...state.events, {
+				id: rid(),
+				ticketId: ticket.id,
+				actorId: input.clientId,
+				description: `Ticket ${ticket.number} created with ${ticket.priority} priority`,
+				createdAt: now()
+			}],
+			notifications: [
+				{
+					id: rid(),
+					userId: input.clientId,
+					title: "Ticket created",
+					message: `Your ticket ${ticket.number} has been created successfully`,
+					type: "ticket",
+					read: false,
+					createdAt: now()
+				},
+				{
+					id: rid(),
+					userId: "u1",
+					title: "New ticket",
+					message: `${ticket.number} was created (${ticket.priority} priority)`,
+					type: "ticket",
+					read: false,
+					createdAt: now()
+				},
+				...state.notifications
+			]
+		});
+		return ticket;
+	},
+	addMessage(ticketId, authorId, body, isInternal, attachments = []) {
+		set({
+			messages: [...state.messages, {
+				id: rid(),
+				ticketId,
+				authorId,
+				body,
+				isInternal,
+				createdAt: now(),
+				attachments
+			}],
+			tickets: state.tickets.map((t) => t.id === ticketId ? {
+				...t,
+				updatedAt: now()
+			} : t)
+		});
+	},
+	updateTicket(ticketId, patch, actorId, description) {
+		set({
+			tickets: state.tickets.map((t) => t.id === ticketId ? {
+				...t,
+				...patch,
+				updatedAt: now()
+			} : t),
+			events: [...state.events, {
+				id: rid(),
+				ticketId,
+				actorId,
+				description,
+				createdAt: now()
+			}],
+			audit: [{
+				id: rid(),
+				userId: actorId,
+				action: "Ticket updated",
+				module: "Tickets",
+				description,
+				ip: "10.24.8.44",
+				createdAt: now()
+			}, ...state.audit]
+		});
+	},
+	markNotificationsRead(userId) {
+		set({ notifications: state.notifications.map((n) => n.userId === userId ? {
+			...n,
+			read: true
+		} : n) });
+	},
+	updateUser(userId, patch) {
+		set({ users: state.users.map((u) => u.id === userId ? {
+			...u,
+			...patch
+		} : u) });
+	},
+	addUser(user) {
+		set({ users: [user, ...state.users] });
+	},
+	upsertCategory(cat) {
+		set({ categories: state.categories.some((c) => c.id === cat.id) ? state.categories.map((c) => c.id === cat.id ? cat : c) : [...state.categories, cat] });
+	},
+	log(userId, action, module, description) {
+		set({ audit: [{
+			id: rid(),
+			userId,
+			action,
+			module,
+			description,
+			ip: "10.24.8.44",
+			createdAt: now()
+		}, ...state.audit] });
+	}
+};
+var findUser = (s, id) => s.users.find((u) => u.id === id);
+var categoryName = (s, id) => s.categories.find((c) => c.id === id)?.name ?? "—";
+function formatDate(value, withTime = false) {
+	const d = new Date(value);
+	const date = d.toLocaleDateString("en-GB", {
+		day: "2-digit",
+		month: "short",
+		year: "numeric"
+	});
+	return withTime ? `${date}, ${d.toLocaleTimeString("en-GB", {
+		hour: "2-digit",
+		minute: "2-digit"
+	})}` : date;
+}
+function relativeTime(value) {
+	const diff = Date.now() - new Date(value).getTime();
+	const mins = Math.round(diff / 6e4);
+	if (mins < 60) return `${Math.max(1, mins)}m ago`;
+	const hours = Math.round(mins / 60);
+	if (hours < 24) return `${hours}h ago`;
+	return `${Math.round(hours / 24)}d ago`;
+}
+//#endregion
+export { DropdownMenuSeparator as a, PopoverContent as c, actions as d, categoryName as f, useStore as g, relativeTime as h, DropdownMenuLabel as i, PopoverTrigger as l, formatDate as m, DropdownMenuContent as n, DropdownMenuTrigger as o, findUser as p, DropdownMenuItem as r, Popover as s, DropdownMenu as t, TICKET_CATEGORIES as u };

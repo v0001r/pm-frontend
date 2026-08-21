@@ -1,17 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Search } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fieldInputClass, FormField } from "@/components/form-field";
-import { getApiErrorMessage } from "@/lib/api";
-import { projectFormSchema, validateForm } from "@/lib/form-validation";
-import { createProject, fetchCustomers, updateProject } from "@/lib/projects";
-import { PROJECT_STATUSES, type CreateProjectPayload, type ProjectStatus, type UpdateProjectPayload } from "@/lib/types";
+import { getApiErrorMessage, getApiFieldErrors } from "@/lib/api";
+import { FIELD_LIMITS, projectFormSchema, validateForm } from "@/lib/form-validation";
+import { createProject, fetchProjectCustomerOptions, updateProject } from "@/lib/projects";
+import { PROJECT_STATUSES, type CreateProjectPayload, type Customer, type ProjectStatus, type UpdateProjectPayload } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export interface ProjectFormValues {
   name: string;
@@ -37,9 +47,9 @@ const defaultValues: ProjectFormValues = {
   name: "",
   customerId: "",
   description: "",
-  startDate: new Date().toISOString().slice(0, 10),
+  startDate: "",
   endDate: "",
-  maxHours: "40",
+  maxHours: "",
   label: "",
   status: "Open",
 };
@@ -74,6 +84,109 @@ export function projectToFormValues(project: {
   };
 }
 
+function CustomerSearchSelect({
+  value,
+  onChange,
+  customerName,
+  options,
+  loading,
+  error,
+  search,
+  onSearchChange,
+}: {
+  value: string;
+  onChange: (customerId: string) => void;
+  customerName?: string | undefined;
+  options: Customer[];
+  loading: boolean;
+  error?: string | undefined;
+  search: string;
+  onSearchChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((customer) => customer._id === value);
+  const displayName = selected ? selected.companyName || selected.name : customerName ?? "";
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Popover
+        modal
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (next) onSearchChange("");
+        }}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            aria-label="Select customer"
+            className={cn("h-9 min-w-0 flex-1 justify-between font-normal", fieldInputClass(error))}
+          >
+            <span className={cn("truncate", !displayName && "text-muted-foreground")}>
+              {displayName || "Search customer"}
+            </span>
+            <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="z-70 w-(--radix-popover-trigger-width) p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Search by company, email or ID"
+            value={search}
+            onValueChange={onSearchChange}
+          />
+          <CommandList>
+            {loading ? (
+              <div className="px-2 py-6 text-center text-sm text-muted-foreground">Searching customers…</div>
+            ) : options.length === 0 ? (
+              <CommandEmpty>No customers found</CommandEmpty>
+            ) : (
+              <CommandGroup>
+                {options.map((customer) => (
+                  <CommandItem
+                    key={customer._id}
+                    value={`${customer.companyName || customer.name} ${customer.email ?? ""} ${customer._id}`}
+                    onSelect={() => {
+                      onChange(customer._id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("size-4", value === customer._id ? "opacity-100" : "opacity-0")} />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate">{customer.companyName || customer.name}</span>
+                      {customer.email ? (
+                        <span className="truncate text-xs text-muted-foreground">{customer.email}</span>
+                      ) : null}
+                    </span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+        </PopoverContent>
+      </Popover>
+      {value ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
+          aria-label="Clear customer selection"
+          title="Clear selection"
+          onClick={() => onChange("")}
+        >
+          <X className="size-4" />
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function ProjectForm({ mode, projectId, initialValues, customerName, onCancel, onSuccess }: ProjectFormProps) {
   const queryClient = useQueryClient();
   const [values, setValues] = useState<ProjectFormValues>({ ...defaultValues, ...initialValues });
@@ -86,18 +199,29 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
     return () => window.clearTimeout(timer);
   }, [customerSearch]);
 
-  const { data: customers = [], isLoading: customersLoading } = useQuery({
-    queryKey: ["customers", debouncedCustomerSearch],
-    queryFn: () => fetchCustomers(debouncedCustomerSearch || undefined),
+  const { data: customers = [], isLoading: customersLoading, isFetching: customersFetching } = useQuery({
+    queryKey: ["customers", "project-picker", debouncedCustomerSearch],
+    queryFn: () => fetchProjectCustomerOptions(debouncedCustomerSearch || undefined),
+    refetchOnWindowFocus: false,
+    staleTime: 30_000,
   });
 
   const customerOptions = useMemo(() => {
-    const options = [...customers];
-    if (values.customerId && !options.some((customer) => customer._id === values.customerId) && customerName) {
-      options.unshift({ _id: values.customerId, name: customerName, email: "" });
+    const options = customersFetching ? [] : [...customers];
+    if (
+      values.customerId &&
+      !options.some((customer) => customer._id === values.customerId) &&
+      customerName
+    ) {
+      options.unshift({
+        _id: values.customerId,
+        name: customerName,
+        companyName: customerName,
+        email: "",
+      } as Customer);
     }
     return options;
-  }, [customers, values.customerId, customerName]);
+  }, [customers, customersFetching, values.customerId, customerName]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -136,6 +260,11 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
       onSuccess(project._id);
     },
     onError: (error) => {
+      const fieldErrors = getApiFieldErrors(error);
+      if (Object.keys(fieldErrors).length > 0) {
+        setErrors((current) => ({ ...current, ...fieldErrors }));
+        return;
+      }
       toast.error(getApiErrorMessage(error, "Failed to save project"));
     },
   });
@@ -177,40 +306,24 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
             id="project-name"
             value={values.name}
             onChange={(event) => updateField("name", event.target.value)}
+            onBlur={(event) => updateField("name", event.target.value.trim())}
             placeholder="Website redesign"
-            maxLength={120}
+            maxLength={FIELD_LIMITS.PROJECT_NAME_MAX}
             className={fieldInputClass(errors.name)}
           />
         </FormField>
 
         <FormField label="Customer" htmlFor="customer-search" error={errors.customerId} className="sm:col-span-2" required>
-          <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="customer-search"
-              value={customerSearch}
-              onChange={(event) => setCustomerSearch(event.target.value)}
-              placeholder="Search customers by name or email"
-              className="mb-2 h-9 pl-9"
-            />
-          </div>
-          <Select value={values.customerId} onValueChange={(value) => updateField("customerId", value)}>
-            <SelectTrigger className={fieldInputClass(errors.customerId)}>
-              <SelectValue placeholder={customersLoading ? "Loading customers..." : "Select customer"} />
-            </SelectTrigger>
-            <SelectContent>
-              {customerOptions.length === 0 ? (
-                <div className="px-2 py-6 text-center text-sm text-muted-foreground">No customers found</div>
-              ) : (
-                customerOptions.map((customer) => (
-                  <SelectItem key={customer._id} value={customer._id}>
-                    {customer.name}
-                    {customer.email ? ` · ${customer.email}` : ""}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
+          <CustomerSearchSelect
+            value={values.customerId}
+            onChange={(customerId) => updateField("customerId", customerId)}
+            customerName={customerName}
+            options={customerOptions}
+            loading={customersLoading || customersFetching}
+            error={errors.customerId}
+            search={customerSearch}
+            onSearchChange={setCustomerSearch}
+          />
         </FormField>
 
         <FormField label="Start date" htmlFor="start-date" error={errors.startDate} required>
@@ -237,8 +350,15 @@ export function ProjectForm({ mode, projectId, initialValues, customerName, onCa
           <Input
             id="max-hours"
             type="number"
+            min={0}
+            step={1}
             value={values.maxHours}
-            onChange={(event) => updateField("maxHours", event.target.value)}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next === "" || /^\d+$/.test(next)) {
+                updateField("maxHours", next);
+              }
+            }}
             className={fieldInputClass(errors.maxHours)}
           />
         </FormField>

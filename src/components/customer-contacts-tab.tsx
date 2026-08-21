@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Mail, MoreHorizontal, Pencil, Plus, Star, UserCheck, UserX, Users } from "lucide-react";
+import { Mail, Pencil, Plus, Star, UserCheck, UserX, Users } from "lucide-react";
 import { ContactForm } from "@/components/contact-form";
 import { EmptyState, SectionCard, StatusBadge, TableSkeleton } from "@/components/primitives";
 import {
   DataTableActions,
-  DataTableIconButton,
+  DataTableRowMenu,
   EntityCell,
   LabelPill,
   Table,
@@ -24,14 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { getApiErrorMessage } from "@/lib/api";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { getApiErrorMessage, getApiFieldErrors } from "@/lib/api";
 import {
   createContact,
   inviteContact,
@@ -79,7 +73,11 @@ export function CustomerContactsTab({ customerId, canManage }: CustomerContactsT
       setCreateOpen(false);
       toast.success("Contact added.");
     },
-    onError: (error) => toast.error(getApiErrorMessage(error, "Failed to add contact")),
+    onError: (error) => {
+      if (Object.keys(getApiFieldErrors(error)).length === 0) {
+        toast.error(getApiErrorMessage(error, "Failed to add contact"));
+      }
+    },
   });
 
   const updateMutation = useMutation({
@@ -95,7 +93,11 @@ export function CustomerContactsTab({ customerId, canManage }: CustomerContactsT
       setEditingContact(null);
       toast.success("Contact updated.");
     },
-    onError: (error) => toast.error(getApiErrorMessage(error, "Failed to update contact")),
+    onError: (error) => {
+      if (Object.keys(getApiFieldErrors(error)).length === 0) {
+        toast.error(getApiErrorMessage(error, "Failed to update contact"));
+      }
+    },
   });
 
   const statusMutation = useMutation({
@@ -186,56 +188,49 @@ export function CustomerContactsTab({ customerId, canManage }: CustomerContactsT
                   {canManage && (
                     <TableCell>
                       <DataTableActions>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <DataTableIconButton label="More actions">
-                              <MoreHorizontal className="size-4" />
-                            </DataTableIconButton>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditingContact(contact)}>
-                              <Pencil className="size-4" /> Edit
-                            </DropdownMenuItem>
-                            {!contact.isPrimary && (
-                              <DropdownMenuItem
-                                disabled={primaryMutation.isPending}
-                                onClick={() => primaryMutation.mutate(contact._id)}
-                              >
-                                <Star className="size-4" /> Set as primary
-                              </DropdownMenuItem>
-                            )}
+                        <DataTableRowMenu>
+                          <DropdownMenuItem onClick={() => setEditingContact(contact)}>
+                            <Pencil className="size-4" /> Edit
+                          </DropdownMenuItem>
+                          {!contact.isPrimary && (
                             <DropdownMenuItem
-                              disabled={statusMutation.isPending}
-                              onClick={() =>
-                                statusMutation.mutate({
-                                  contactId: contact._id,
-                                  status: contact.status === "Active" ? "Inactive" : "Active",
-                                })
-                              }
+                              disabled={primaryMutation.isPending}
+                              onClick={() => primaryMutation.mutate(contact._id)}
                             >
-                              {contact.status === "Active" ? (
-                                <>
-                                  <UserX className="size-4" /> Deactivate
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="size-4" /> Activate
-                                </>
-                              )}
+                              <Star className="size-4" /> Set as primary
                             </DropdownMenuItem>
-                            {contact.portalAccess && contact.invitationStatus !== "Accepted" && (
+                          )}
+                          <DropdownMenuItem
+                            disabled={statusMutation.isPending}
+                            onClick={() =>
+                              statusMutation.mutate({
+                                contactId: contact._id,
+                                status: contact.status === "Active" ? "Inactive" : "Active",
+                              })
+                            }
+                          >
+                            {contact.status === "Active" ? (
                               <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  disabled={inviteMutation.isPending}
-                                  onClick={() => inviteMutation.mutate(contact._id)}
-                                >
-                                  <Mail className="size-4" /> {invitationLabel(contact.invitationStatus)}
-                                </DropdownMenuItem>
+                                <UserX className="size-4" /> Deactivate
+                              </>
+                            ) : (
+                              <>
+                                <UserCheck className="size-4" /> Activate
                               </>
                             )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                          </DropdownMenuItem>
+                          {contact.portalAccess && contact.invitationStatus !== "Accepted" && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                disabled={inviteMutation.isPending}
+                                onClick={() => inviteMutation.mutate(contact._id)}
+                              >
+                                <Mail className="size-4" /> {invitationLabel(contact.invitationStatus)}
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DataTableRowMenu>
                       </DataTableActions>
                     </TableCell>
                   )}

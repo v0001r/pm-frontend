@@ -83,11 +83,6 @@ export async function resendCustomerInvitation(customerId: string) {
   return data.data;
 }
 
-export async function activateAccount(token: string, password: string) {
-  const { data } = await api.post<ApiResponse<{ message: string }>>("/auth/activate", { token, password });
-  return data.data;
-}
-
 export async function fetchPortalDashboard() {
   const { data } = await api.get<
     ApiResponse<{

@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { buildProjectCustomerSearchParams } from "./project-customer-search";
 import type {
   ApiResponse,
   AssignProjectMemberPayload,
@@ -23,9 +24,9 @@ export async function fetchProject(id: string) {
   return data.data;
 }
 
-export async function fetchCustomers(search?: string, limit = 50) {
+export async function fetchProjectCustomerOptions(search?: string, limit?: number) {
   const { data } = await api.get<ApiResponse<PaginatedResult<Customer>>>("/customers", {
-    params: { search, limit, page: 1 },
+    params: buildProjectCustomerSearchParams(search, limit),
   });
   return data.data.items;
 }

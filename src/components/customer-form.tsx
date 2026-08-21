@@ -10,7 +10,9 @@ import {
   FIELD_LIMITS,
   constrainInternationalPhoneInput,
   hasConsecutiveSpaces,
+  mapCustomerApiFieldErrors,
 } from "@/lib/form-validation";
+import { getApiFieldErrors } from "@/lib/api";
 import { useZodForm } from "@/lib/use-zod-form";
 import type { CreateCustomerPayload, Customer, UpdateCustomerPayload } from "@/lib/types";
 
@@ -30,7 +32,7 @@ export function CustomerForm({
   isEdit = false,
 }: CustomerFormProps) {
   const schema = isEdit ? customerEditSchema : customerCreateSchema;
-  const { errors, handleBlur, handleChange, validateAll } = useZodForm(schema);
+  const { errors, handleBlur, handleChange, setFieldErrors, clearAllErrors, validateAll } = useZodForm(schema);
 
   const [companyName, setCompanyName] = useState(initial?.companyName ?? initial?.name ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
@@ -49,14 +51,26 @@ export function CustomerForm({
   const [submitting, setSubmitting] = useState(false);
 
   function formValues() {
+    const addressFields = { address, city, state, postalCode, country };
     return isEdit
-      ? { companyName, email, phone, website }
-      : { companyName, email, phone, website, contactName, contactEmail, contactMobile, contactTitle };
+      ? { companyName, email, phone, website, ...addressFields }
+      : {
+          companyName,
+          email,
+          phone,
+          website,
+          ...addressFields,
+          contactName,
+          contactEmail,
+          contactMobile,
+          contactTitle,
+        };
   }
 
   function fieldHandlers(field: string, setter: (value: string) => void) {
     return {
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (submitting) return;
         let next = e.target.value;
         if (field === "phone" || field === "contactMobile") {
           next = constrainInternationalPhoneInput(next);
@@ -69,6 +83,7 @@ export function CustomerForm({
         handleChange(field, next);
       },
       onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+        if (submitting) return;
         const next = e.target.value.trim();
         setter(next);
         handleBlur(field, next);
@@ -89,6 +104,11 @@ export function CustomerForm({
             "email",
             "phone",
             "website",
+            "address",
+            "city",
+            "state",
+            "postalCode",
+            "country",
             "contactName",
             "contactTitle",
             "contactEmail",
@@ -105,11 +125,11 @@ export function CustomerForm({
               companyName: data.companyName.trim(),
               email: data.email.trim() || undefined,
               phone: data.phone || undefined,
-              address,
-              city,
-              state,
-              postalCode,
-              country,
+              address: data.address || undefined,
+              city: data.city || undefined,
+              state: data.state || undefined,
+              postalCode: data.postalCode || undefined,
+              country: data.country || undefined,
               website: data.website || undefined,
               portalEnabled,
             });
@@ -119,21 +139,44 @@ export function CustomerForm({
               companyName: data.companyName.trim(),
               email: data.email.trim() || undefined,
               phone: data.phone || undefined,
-              address,
-              city,
-              state,
-              postalCode,
-              country,
+              address: data.address || undefined,
+              city: data.city || undefined,
+              state: data.state || undefined,
+              postalCode: data.postalCode || undefined,
+              country: data.country || undefined,
               website: data.website || undefined,
               portalEnabled,
               primaryContact: {
                 name: data.contactName,
                 email: data.contactEmail,
                 mobile: data.contactMobile || undefined,
-                jobTitle: data.contactTitle.trim() || undefined,
+                jobTitle: data.contactTitle || undefined,
               },
             });
           }
+          clearAllErrors();
+        } catch (error) {
+          const fieldErrors = mapCustomerApiFieldErrors(getApiFieldErrors(error));
+          if (Object.keys(fieldErrors).length > 0) {
+            setFieldErrors(fieldErrors);
+            focusFirstInvalidField(fieldErrors, [
+              "companyName",
+              "email",
+              "phone",
+              "website",
+              "address",
+              "city",
+              "state",
+              "postalCode",
+              "country",
+              "contactName",
+              "contactTitle",
+              "contactEmail",
+              "contactMobile",
+            ]);
+            return;
+          }
+          throw error;
         } finally {
           setSubmitting(false);
         }
@@ -179,26 +222,56 @@ export function CustomerForm({
             className={fieldInputClass(errors.phone)}
           />
         </FormField>
-        <div className="grid gap-1.5 sm:col-span-2">
-          <Label>Address</Label>
-          <Input value={address} onChange={(e) => setAddress(e.target.value)} />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>Postal code</Label>
-          <Input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>Country</Label>
-          <Input value={country} onChange={(e) => setCountry(e.target.value)} />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>State</Label>
-          <Input value={state} onChange={(e) => setState(e.target.value)} />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>City</Label>
-          <Input value={city} onChange={(e) => setCity(e.target.value)} />
-        </div>
+        <FormField label="Address" htmlFor="address" error={errors.address} className="sm:col-span-2">
+          <Input
+            id="address"
+            value={address}
+            {...fieldHandlers("address", setAddress)}
+            aria-invalid={Boolean(errors.address)}
+            aria-describedby={errors.address ? "address-error" : undefined}
+            className={fieldInputClass(errors.address)}
+          />
+        </FormField>
+        <FormField label="Postal code" htmlFor="postalCode" error={errors.postalCode}>
+          <Input
+            id="postalCode"
+            value={postalCode}
+            {...fieldHandlers("postalCode", setPostalCode)}
+            aria-invalid={Boolean(errors.postalCode)}
+            aria-describedby={errors.postalCode ? "postalCode-error" : undefined}
+            className={fieldInputClass(errors.postalCode)}
+          />
+        </FormField>
+        <FormField label="Country" htmlFor="country" error={errors.country}>
+          <Input
+            id="country"
+            value={country}
+            {...fieldHandlers("country", setCountry)}
+            aria-invalid={Boolean(errors.country)}
+            aria-describedby={errors.country ? "country-error" : undefined}
+            className={fieldInputClass(errors.country)}
+          />
+        </FormField>
+        <FormField label="State" htmlFor="state" error={errors.state}>
+          <Input
+            id="state"
+            value={state}
+            {...fieldHandlers("state", setState)}
+            aria-invalid={Boolean(errors.state)}
+            aria-describedby={errors.state ? "state-error" : undefined}
+            className={fieldInputClass(errors.state)}
+          />
+        </FormField>
+        <FormField label="City" htmlFor="city" error={errors.city}>
+          <Input
+            id="city"
+            value={city}
+            {...fieldHandlers("city", setCity)}
+            aria-invalid={Boolean(errors.city)}
+            aria-describedby={errors.city ? "city-error" : undefined}
+            className={fieldInputClass(errors.city)}
+          />
+        </FormField>
         <FormField label="Website" htmlFor="website" error={errors.website} className="sm:col-span-2">
           <Input
             id="website"

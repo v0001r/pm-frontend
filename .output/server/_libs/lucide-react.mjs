@@ -589,6 +589,26 @@ var Eye = createLucideIcon("eye", [["path", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var FileQuestionMark = createLucideIcon("file-question-mark", [
+	["path", {
+		d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
+		key: "1oefj6"
+	}],
+	["path", {
+		d: "M12 17h.01",
+		key: "p32p05"
+	}],
+	["path", {
+		d: "M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3",
+		key: "mhlwft"
+	}]
+]);
+/**
+* @license lucide-react v0.575.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var FolderKanban = createLucideIcon("folder-kanban", [
 	["path", {
 		d: "M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z",
@@ -605,28 +625,6 @@ var FolderKanban = createLucideIcon("folder-kanban", [
 	["path", {
 		d: "M16 10v6",
 		key: "1d6xys"
-	}]
-]);
-/**
-* @license lucide-react v0.575.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
-var Globe = createLucideIcon("globe", [
-	["circle", {
-		cx: "12",
-		cy: "12",
-		r: "10",
-		key: "1mglay"
-	}],
-	["path", {
-		d: "M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20",
-		key: "13o1zl"
-	}],
-	["path", {
-		d: "M2 12h20",
-		key: "9i4pu4"
 	}]
 ]);
 /**
@@ -1512,4 +1510,4 @@ var X = createLucideIcon("x", [["path", {
 	key: "d8bk6v"
 }]]);
 //#endregion
-export { CirclePause as $, Mail as A, KeyRound as B, Paperclip as C, Minus as D, Moon as E, LoaderCircle as F, Eye as G, Inbox as H, ListFilter as I, EllipsisVertical as J, EyeOff as K, LifeBuoy as L, MailCheck as M, LogOut as N, MessageSquare as O, Lock as P, Circle as Q, LayoutDashboard as R, Pencil as S, PanelLeftClose as T, Globe as U, Info as V, FolderKanban as W, Clock as X, Download as Y, Clock3 as Z, ShieldAlert as _, AlarmClock as _t, UserRound as a, ChevronUp as at, Search as b, UserCheck as c, ChevronDown as ct, Ticket as d, Building2 as dt, CircleDot as et, Sun as f, Bell as ft, ShieldCheck as g, Archive as gt, SlidersHorizontal as h, ArrowDownRight as ht, UserX as i, ChevronsLeft as it, MailWarning as j, Menu as k, TriangleAlert as l, Check as lt, Star as m, ArrowLeft as mt, Users as n, ChevronsUpDown as nt, UserPlus as o, ChevronRight as ot, StickyNote as p, ArrowUpRight as pt, Ellipsis as q, User as r, ChevronsRight as rt, UserCog as s, ChevronLeft as st, X as t, CircleCheck as tt, Trash2 as u, ChartColumn as ut, Settings as v, Activity as vt, PanelLeftOpen as w, Plus as x, Send as y, Layers as z };
+export { CirclePause as $, Mail as A, KeyRound as B, Paperclip as C, Minus as D, Moon as E, LoaderCircle as F, Eye as G, Inbox as H, ListFilter as I, EllipsisVertical as J, EyeOff as K, LifeBuoy as L, MailCheck as M, LogOut as N, MessageSquare as O, Lock as P, Circle as Q, LayoutDashboard as R, Pencil as S, PanelLeftClose as T, FolderKanban as U, Info as V, FileQuestionMark as W, Clock as X, Download as Y, Clock3 as Z, ShieldAlert as _, AlarmClock as _t, UserRound as a, ChevronUp as at, Search as b, UserCheck as c, ChevronDown as ct, Ticket as d, Building2 as dt, CircleDot as et, Sun as f, Bell as ft, ShieldCheck as g, Archive as gt, SlidersHorizontal as h, ArrowDownRight as ht, UserX as i, ChevronsLeft as it, MailWarning as j, Menu as k, TriangleAlert as l, Check as lt, Star as m, ArrowLeft as mt, Users as n, ChevronsUpDown as nt, UserPlus as o, ChevronRight as ot, StickyNote as p, ArrowUpRight as pt, Ellipsis as q, User as r, ChevronsRight as rt, UserCog as s, ChevronLeft as st, X as t, CircleCheck as tt, Trash2 as u, ChartColumn as ut, Settings as v, Activity as vt, PanelLeftOpen as w, Plus as x, Send as y, Layers as z };
