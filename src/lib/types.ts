@@ -297,6 +297,7 @@ export interface TicketSlaCycleHistory {
   resolutionSlaMetAt?: string | null;
   resolutionSlaStatus?: string;
   resolutionSlaBreached?: boolean;
+  slaResolutionFrozenAt?: string | null;
   startedAt: string;
   endedAt?: string | null;
 }
@@ -304,9 +305,19 @@ export interface TicketSlaCycleHistory {
 export interface TicketSlaSummary {
   cycleNumber: number;
   assignmentSlaDueAt?: string | null;
+  assignmentSlaMetAt?: string | null;
   assignmentSlaStatus?: string;
   resolutionSlaDueAt?: string | null;
+  resolutionSlaMetAt?: string | null;
   resolutionSlaStatus?: string;
+  slaStatus?: string | null;
+  breachStatus?: 0 | 1 | boolean;
+  slaResolutionFrozenAt?: string | null;
+  pendingApprovalAt?: string | null;
+  reopenedCount?: number;
+  assignmentSlaMinutes?: number;
+  resolutionSlaMinutes?: number;
+  serverNowMs?: number;
   history?: TicketSlaCycleHistory[];
 }
 

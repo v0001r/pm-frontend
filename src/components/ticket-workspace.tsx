@@ -16,6 +16,7 @@ import {
   Send,
   StickyNote,
   Ticket,
+  Timer,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SlaWorkflowBadge, TicketSlaHistorySection } from "@/components/ticket-sla-history";
 import { EmptyState, PriorityBadge, SlaBadge, StatusBadge, UserAvatar } from "@/components/primitives";
 import { fieldInputClass } from "@/components/form-field";
 import { FileUploadField } from "@/components/file-upload-field";
@@ -55,7 +57,8 @@ import { fetchCategories } from "@/lib/categories";
 import { fetchProjectMembers } from "@/lib/projects";
 import { formatDate } from "@/lib/store";
 import { fetchEmployees } from "@/lib/users";
-import { fetchSlaPolicies, findSlaPolicyForPriority, slaTargetsFromPolicy } from "@/lib/sla";
+import { fetchSlaPolicies, findSlaPolicyForPriority } from "@/lib/sla";
+import { useTicketSlaPanel } from "@/lib/use-sla-timer";
 import {
   activityDescription,
   fetchTicket,
@@ -65,20 +68,18 @@ import {
   getTicketCategoryLabel,
   getTicketProjectLabel,
   getTicketSlaDueAt,
-  getTicketSlaState,
   getTicketUserId,
   getTicketUserLabel,
-  mapSlaStatus,
   mergeTicketHistory,
   postTicketMessage,
   transitionTicket,
   updateTicket,
 } from "@/lib/tickets";
-import { PRIORITIES, SETTABLE_STATUSES, assignedToUserId, employeeOptionLabel, fullName, memberUserId, userRecordIds, type Priority, type TicketSlaSummary, type TicketStatus, type TicketUserRef, type User } from "@/lib/types";
+import { PRIORITIES, SETTABLE_STATUSES, assignedToUserId, employeeOptionLabel, fullName, memberUserId, userRecordIds, type Priority, type TicketStatus, type TicketUserRef, type User } from "@/lib/types";
 import type { UploadedFileRef } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
 
-type WorkspaceTab = "conversation" | "history" | "notes" | "activities";
+type WorkspaceTab = "conversation" | "history" | "sla-history" | "notes" | "activities";
 
 export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "admin" | "client" }) {
   const { user } = useAuth();
@@ -145,6 +146,11 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
     queryKey: ["sla-policies"],
     queryFn: fetchSlaPolicies,
   });
+
+  const slaPolicy = ticketQuery.data
+    ? findSlaPolicyForPriority(slaPoliciesQuery.data, ticketQuery.data.priority)
+    : undefined;
+  const slaPanel = useTicketSlaPanel(ticketQuery.data, slaPolicy);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
@@ -298,8 +304,6 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
       : assignableEmployees;
   const backTo = mode === "admin" ? "/admin/tickets" : "/portal/tickets";
   const slaDue = getTicketSlaDueAt(ticket);
-  const slaPolicy = findSlaPolicyForPriority(slaPoliciesQuery.data, ticket.priority);
-  const slaTargets = slaPolicy ? slaTargetsFromPolicy(slaPolicy) : { response: "—", resolution: "—" };
   const busy = messageMutation.isPending || updateMutation.isPending || transitionMutation.isPending;
   const isCancelled = ticket.status === "Cancelled";
   const tags = ticket.tags ?? [];
@@ -308,6 +312,12 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
   const workspaceTabs: { id: WorkspaceTab; label: string; icon: typeof MessageSquare; count?: number }[] = [
     { id: "conversation", label: "Conversation", icon: MessageSquare },
     { id: "history", label: "History", icon: Clock },
+    {
+      id: "sla-history",
+      label: "SLA History",
+      icon: Timer,
+      ...(slaPanel.cycles.length ? { count: slaPanel.cycles.length } : {}),
+    },
     { id: "notes", label: "Notes", icon: StickyNote, count: internalNotes },
     { id: "activities", label: "Activities", icon: Activity },
   ];
@@ -713,8 +723,6 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
 
               <TicketHistorySection
                 entries={historyEntries}
-                sla={ticket.sla}
-                slaTargets={slaTargets}
                 loading={activitiesQuery.isLoading || eventsQuery.isLoading}
               />
             </>
@@ -723,42 +731,62 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
           {activeTab === "history" && (
             <TicketHistorySection
               entries={historyEntries}
-              sla={ticket.sla}
-              slaTargets={slaTargets}
-                loading={activitiesQuery.isLoading || eventsQuery.isLoading}
+              loading={activitiesQuery.isLoading || eventsQuery.isLoading}
+            />
+          )}
+
+          {activeTab === "sla-history" && (
+            <TicketSlaHistorySection
+              workflow={slaPanel.workflow}
+              hasRule={slaPanel.hasRule}
+              noRuleMessage={slaPanel.noRuleMessage}
+              deadlinesPending={slaPanel.deadlinesPending}
+              cycleNumber={slaPanel.cycleNumber}
+              reopenedCount={slaPanel.reopenedCount}
+              matrix={slaPanel.targets.matrix}
+              assignment={slaPanel.assignment}
+              resolution={slaPanel.resolution}
+              assignmentTarget={slaPanel.targets.assignment}
+              resolutionTarget={slaPanel.targets.resolution}
+              cycles={slaPanel.cycles}
+              events={slaPanel.events}
             />
           )}
 
           {activeTab === "notes" && (
             <WorkspaceCard>
               <CardHeader title="Internal notes" count={internalNotes} />
-              <div className="flex flex-col gap-4 p-5">
-                {messages.filter((m) => m.isInternal).length === 0 ? (
+              {messages.filter((m) => m.isInternal).length === 0 ? (
+                <div className="p-5">
                   <EmptyState
                     title="No internal notes"
                     description="Internal notes are only visible to your support team."
                     icon={StickyNote}
                   />
-                ) : (
-                  messages
-                    .filter((m) => m.isInternal)
-                    .map((message) => {
-                      const author = message.authorId as TicketUserRef;
-                      return (
-                        <article key={message._id} className="rounded-lg border border-amber-200/80 bg-amber-50/50 p-4">
-                          <header className="flex items-center gap-2">
-                            <UserAvatar name={fullName(author)} hue={42} size={26} />
-                            <span className="text-sm font-semibold">{fullName(author)}</span>
-                            <span className="ml-auto text-xs text-muted-foreground">
-                              {formatDate(message.createdAt, true)}
-                            </span>
-                          </header>
-                          <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{message.body}</p>
-                        </article>
-                      );
-                    })
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="max-h-[min(20rem,45vh)] overflow-y-auto overscroll-contain">
+                  <div className="flex flex-col gap-4 p-5">
+                    {messages
+                      .filter((m) => m.isInternal)
+                      .map((message) => {
+                        const author = message.authorId as TicketUserRef;
+                        return (
+                          <article key={message._id} className="rounded-lg border border-amber-200/80 bg-amber-50/50 p-4">
+                            <header className="flex items-center gap-2">
+                              <UserAvatar name={fullName(author)} hue={42} size={26} />
+                              <span className="text-sm font-semibold">{fullName(author)}</span>
+                              <span className="ml-auto text-xs text-muted-foreground">
+                                {formatDate(message.createdAt, true)}
+                              </span>
+                            </header>
+                            <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{message.body}</p>
+                          </article>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </WorkspaceCard>
           )}
 
@@ -774,22 +802,24 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                   icon={Activity}
                 />
               ) : (
-                <ol className="flex flex-col gap-3 p-5">
-                  {activities.map((activity) => {
-                    const actor = activity.actorId as TicketUserRef;
-                    return (
-                      <li key={activity._id} className="flex items-start gap-3 text-sm">
-                        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
-                        <div>
-                          <p className="font-medium">{activityDescription(activity)}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {getTicketUserLabel(actor)} · {formatDate(activity.createdAt, true)}
-                          </p>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
+                <div className="max-h-[min(20rem,45vh)] overflow-y-auto overscroll-contain">
+                  <ol className="flex flex-col gap-3 p-5">
+                    {activities.map((activity) => {
+                      const actor = activity.actorId as TicketUserRef;
+                      return (
+                        <li key={activity._id} className="flex items-start gap-3 text-sm">
+                          <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                          <div>
+                            <p className="font-medium">{activityDescription(activity)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {getTicketUserLabel(actor)} · {formatDate(activity.createdAt, true)}
+                            </p>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
               )}
             </WorkspaceCard>
           )}
@@ -816,12 +846,14 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-muted-foreground">SLA status</dt>
                     <dd>
-                      <SlaBadge state={getTicketSlaState(ticket)} />
+                      <SlaWorkflowBadge state={slaPanel.workflow} />
                     </dd>
                   </div>
+                  <DetailRow label="Assignment SLA" value={slaPanel.assignment.text} valueClassName="tabular-nums" />
+                  <DetailRow label="Resolution SLA" value={slaPanel.resolution.text} valueClassName="tabular-nums" />
                   <Separator />
-                  <DetailRow label="Response target" value={slaTargets.response} />
-                  <DetailRow label="Resolution target" value={slaTargets.resolution} />
+                  <DetailRow label="Response target" value={slaPanel.targets.assignment} />
+                  <DetailRow label="Resolution target" value={slaPanel.targets.resolution} />
                   <Separator />
                   <DetailRow label="Assigned agent" value={agent ? fullName(agent) : "Unassigned"} />
                 </dl>
@@ -1036,48 +1068,20 @@ function CardHeader({ title, count }: { title: string; count?: number }) {
 
 function TicketHistorySection({
   entries,
-  sla,
-  slaTargets,
   loading,
 }: {
   entries: ReturnType<typeof mergeTicketHistory>;
-  sla?: TicketSlaSummary | null;
-  slaTargets: { response: string; resolution: string };
   loading: boolean;
 }) {
   return (
     <WorkspaceCard>
       <CardHeader title="Ticket history" count={entries.length} />
-      {sla ? (
-        <div className="border-b border-border px-5 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Current SLA · Cycle {sla.cycleNumber}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Response target {slaTargets.response} · Resolution target {slaTargets.resolution}
-              </p>
-            </div>
-          </div>
-          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-            <SlaHistoryMetric
-              label="Assignment SLA"
-              dueAt={sla.assignmentSlaDueAt}
-              status={sla.assignmentSlaStatus}
-            />
-            <SlaHistoryMetric
-              label="Resolution SLA"
-              dueAt={sla.resolutionSlaDueAt}
-              status={sla.resolutionSlaStatus}
-            />
-          </dl>
-        </div>
-      ) : null}
       {loading ? (
         <p className="p-5 text-sm text-muted-foreground">Loading history…</p>
       ) : entries.length === 0 ? (
         <EmptyState
           title="No history yet"
-          description="Ticket updates and SLA milestones will appear here."
+          description="Ticket updates will appear here."
           icon={Clock}
         />
       ) : (
@@ -1125,31 +1129,11 @@ function TicketHistorySection({
   );
 }
 
-function SlaHistoryMetric({
-  label,
-  dueAt,
-  status,
-}: {
-  label: string;
-  dueAt?: string | null;
-  status?: string;
-}) {
-  return (
-    <div className="rounded-md border border-border/60 bg-muted/20 px-3 py-2.5">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <div className="mt-1 flex flex-wrap items-center gap-2">
-        <SlaBadge state={mapSlaStatus(status)} />
-        {dueAt ? <span className="text-sm text-foreground">Due {formatDate(dueAt, true)}</span> : null}
-      </div>
-    </div>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right font-medium text-foreground">{value}</dd>
+      <dd className={cn("text-right font-medium text-foreground", valueClassName)}>{value}</dd>
     </div>
   );
 }
