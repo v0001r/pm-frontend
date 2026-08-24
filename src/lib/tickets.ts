@@ -76,13 +76,19 @@ export async function postTicketMessage(
 }
 
 export async function fetchTicketEvents(ticketId: string) {
-  const { data } = await api.get<ApiResponse<TicketEvent[]>>(`/tickets/${ticketId}/events`);
-  return data.data;
+  const { data } = await api.get<ApiResponse<TicketEvent[] | PaginatedResult<TicketEvent>>>(
+    `/tickets/${ticketId}/events`,
+  );
+  const payload = data.data;
+  return Array.isArray(payload) ? payload : (payload?.items ?? []);
 }
 
 export async function fetchTicketActivities(ticketId: string) {
-  const { data } = await api.get<ApiResponse<TicketActivity[]>>(`/tickets/${ticketId}/activities`);
-  return data.data;
+  const { data } = await api.get<ApiResponse<TicketActivity[] | PaginatedResult<TicketActivity>>>(
+    `/tickets/${ticketId}/activities`,
+  );
+  const payload = data.data;
+  return Array.isArray(payload) ? payload : (payload?.items ?? []);
 }
 
 export function mapSlaStatus(status?: string | null): SlaDisplayState {
@@ -118,12 +124,135 @@ export function getTicketSlaDueAt(ticket: TicketRecord) {
 export type TicketHistoryEntry = {
   id: string;
   kind: "event" | "sla";
+  type: string;
   date: string;
   action: string;
   performer: string;
   details: string;
   slaState?: SlaDisplayState;
 };
+
+function historyAssigneeLabel(value: unknown) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    return getTicketUserLabel(value as TicketUserRef);
+  }
+  return String(value);
+}
+
+function splitHistoryTypeAction(type: string, action: string) {
+  const trimmedAction = action.trim();
+  if (trimmedAction.toLowerCase() === type.toLowerCase()) {
+    return { type, action: trimmedAction };
+  }
+  const prefix = new RegExp(`^${type}\\s+`, "i");
+  if (prefix.test(trimmedAction)) {
+    const rest = trimmedAction.replace(prefix, "").trim();
+    if (rest) return { type, action: rest };
+  }
+  return { type, action: trimmedAction };
+}
+
+function activityToHistoryEntry(activity: TicketActivity): TicketHistoryEntry {
+  const rawAction = activity.action || "Update";
+  const newValue = activity.newValue ?? {};
+  const oldValue = activity.oldValue ?? {};
+  let type = "Update";
+  let action = rawAction;
+  let details = "";
+
+  if (/status/i.test(rawAction)) {
+    type = "Status";
+    const status = newValue["status"];
+    action = status ? `Changed to ${String(status)}` : rawAction;
+    details = oldValue["status"] ? `Previously ${String(oldValue["status"])}` : "";
+  } else if (/priority/i.test(rawAction)) {
+    type = "Priority";
+    const priority = newValue["priority"];
+    action = priority ? `Changed to ${String(priority)}` : rawAction;
+    details = oldValue["priority"] ? `Previously ${String(oldValue["priority"])}` : "";
+  } else if (/assign/i.test(rawAction)) {
+    type = "Assignment";
+    const assignee = historyAssigneeLabel(newValue["assignedTo"] ?? newValue["assigneeName"] ?? newValue["name"]);
+    action = assignee ? `Assigned to ${assignee}` : rawAction;
+    const previous = historyAssigneeLabel(oldValue["assignedTo"] ?? oldValue["assigneeName"]);
+    details = previous ? `Previously ${previous}` : "";
+  } else if (/comment|note|message/i.test(rawAction)) {
+    type = "Comment";
+    action = /internal/i.test(rawAction) ? "Internal Note Added" : rawAction;
+  } else if (/subject/i.test(rawAction)) {
+    type = "Subject";
+    action = newValue["subject"] ? `Changed to ${String(newValue["subject"])}` : rawAction;
+  } else {
+    action = activityDescription(activity);
+  }
+
+  const split = splitHistoryTypeAction(type, action);
+
+  return {
+    id: activity._id,
+    kind: "event",
+    type: split.type,
+    date: activity.createdAt,
+    action: split.action,
+    performer: getTicketUserLabel(activity.actorId),
+    details: details || "—",
+  };
+}
+
+function eventToHistoryEntry(event: TicketEvent): TicketHistoryEntry {
+  const text = event.description?.trim() || "Update";
+  let type = "Update";
+  let action = text;
+
+  if (/status/i.test(text)) {
+    type = "Status";
+    const match = text.match(/to\s+(.+)$/i);
+    action = match?.[1] ? `Changed to ${match[1].trim()}` : text;
+  } else if (/priority/i.test(text)) {
+    type = "Priority";
+    const match = text.match(/to\s+(.+)$/i);
+    action = match?.[1] ? `Changed to ${match[1].trim()}` : text;
+  } else if (/assign/i.test(text)) {
+    type = "Assignment";
+    action = /assigned to/i.test(text) ? text.replace(/^.*?(Assigned to)/i, "Assigned to") : text;
+  } else if (/internal note|comment/i.test(text)) {
+    type = "Comment";
+    action = /internal/i.test(text) ? "Internal Note Added" : text;
+  }
+
+  const split = splitHistoryTypeAction(type, action);
+
+  return {
+    id: event._id,
+    kind: "event",
+    type: split.type,
+    date: event.createdAt,
+    action: split.action,
+    performer: getTicketUserLabel(event.actorId),
+    details: text,
+  };
+}
+
+function historyFingerprint(entry: TicketHistoryEntry) {
+  return `${entry.date}|${entry.type}|${entry.action}|${entry.performer}`;
+}
+
+export function dedupeHistoryEntries(entries: TicketHistoryEntry[]) {
+  const seenIds = new Set<string>();
+  const seenFingerprints = new Set<string>();
+  return entries.filter((entry) => {
+    if (entry.id) {
+      if (seenIds.has(entry.id)) return false;
+      seenIds.add(entry.id);
+    }
+    const fingerprint = historyFingerprint(entry);
+    if (seenFingerprints.has(fingerprint)) return false;
+    seenFingerprints.add(fingerprint);
+    return true;
+  });
+}
 
 export function buildSlaHistoryEntries(cycles: TicketSlaCycleHistory[]): TicketHistoryEntry[] {
   const entries: TicketHistoryEntry[] = [];
@@ -132,6 +261,7 @@ export function buildSlaHistoryEntries(cycles: TicketSlaCycleHistory[]): TicketH
     entries.push({
       id: `sla-${cycle._id}-start`,
       kind: "sla",
+      type: "SLA",
       date: cycle.startedAt,
       action: `SLA cycle ${cycle.cycleNumber} started`,
       performer: "System",
@@ -143,6 +273,7 @@ export function buildSlaHistoryEntries(cycles: TicketSlaCycleHistory[]): TicketH
       entries.push({
         id: `sla-${cycle._id}-assignment`,
         kind: "sla",
+        type: "SLA",
         date: cycle.assignmentSlaMetAt,
         action: `Assignment SLA ${assignmentState}`,
         performer: "System",
@@ -161,6 +292,7 @@ export function buildSlaHistoryEntries(cycles: TicketSlaCycleHistory[]): TicketH
       entries.push({
         id: `sla-${cycle._id}-resolution`,
         kind: "sla",
+        type: "SLA",
         date: cycle.resolutionSlaMetAt,
         action: `Resolution SLA ${resolutionState}`,
         performer: "System",
@@ -175,6 +307,7 @@ export function buildSlaHistoryEntries(cycles: TicketSlaCycleHistory[]): TicketH
       entries.push({
         id: `sla-${cycle._id}-ended`,
         kind: "sla",
+        type: "SLA",
         date: cycle.endedAt,
         action: `SLA cycle ${cycle.cycleNumber} closed`,
         performer: "System",
@@ -187,21 +320,13 @@ export function buildSlaHistoryEntries(cycles: TicketSlaCycleHistory[]): TicketH
 }
 
 export function mergeTicketHistory(
-  events: TicketEvent[],
-  sla?: TicketSlaSummary | null,
+  activities: TicketActivity[],
+  events: TicketEvent[] = [],
 ): TicketHistoryEntry[] {
-  const eventEntries: TicketHistoryEntry[] = events.map((event) => ({
-    id: event._id,
-    kind: "event",
-    date: event.createdAt,
-    action: "Update",
-    performer: getTicketUserLabel(event.actorId),
-    details: event.description,
-  }));
+  const fromActivities = activities.map(activityToHistoryEntry);
+  const source = fromActivities.length > 0 ? fromActivities : events.map(eventToHistoryEntry);
 
-  const slaEntries = buildSlaHistoryEntries(sla?.history ?? []);
-
-  return [...eventEntries, ...slaEntries].sort(
+  return dedupeHistoryEntries(source).sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
 }
@@ -240,11 +365,11 @@ export function getTicketUserId(user: string | TicketUserRef | null | undefined)
 }
 
 export function activityDescription(activity: TicketActivity) {
-  if (activity.action === "Status Changed" && activity.newValue?.status) {
-    return `Status changed to ${String(activity.newValue.status)}`;
+  if (activity.action === "Status Changed" && activity.newValue?.["status"]) {
+    return `Status changed to ${String(activity.newValue["status"])}`;
   }
-  if (activity.action === "Priority Changed" && activity.newValue?.priority) {
-    return `Priority changed to ${String(activity.newValue.priority)}`;
+  if (activity.action === "Priority Changed" && activity.newValue?.["priority"]) {
+    return `Priority changed to ${String(activity.newValue["priority"])}`;
   }
   return activity.action;
 }

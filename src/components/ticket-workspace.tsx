@@ -5,19 +5,21 @@ import { toast } from "sonner";
 import {
   Activity,
   ArrowLeft,
+  Check,
   ChevronDown,
   Clock,
-  ListFilter,
   Lock,
   MessageSquare,
   MoreVertical,
   Paperclip,
+  Pencil,
   Send,
   StickyNote,
   Ticket,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -44,10 +46,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState, PriorityBadge, SlaBadge, StatusBadge, UserAvatar } from "@/components/primitives";
+import { fieldInputClass } from "@/components/form-field";
 import { FileUploadField } from "@/components/file-upload-field";
 import { getApiErrorMessage } from "@/lib/api";
+import { FIELD_LIMITS, SUBJECT_MAX_MESSAGE, subjectField } from "@/lib/form-validation";
 import { useAuth } from "@/lib/auth";
 import { fetchCategories } from "@/lib/categories";
+import { fetchProjectMembers } from "@/lib/projects";
 import { formatDate } from "@/lib/store";
 import { fetchEmployees } from "@/lib/users";
 import { fetchSlaPolicies, findSlaPolicyForPriority, slaTargetsFromPolicy } from "@/lib/sla";
@@ -69,7 +74,7 @@ import {
   transitionTicket,
   updateTicket,
 } from "@/lib/tickets";
-import { PRIORITIES, SETTABLE_STATUSES, fullName, type Priority, type TicketSlaSummary, type TicketStatus, type TicketUserRef } from "@/lib/types";
+import { PRIORITIES, SETTABLE_STATUSES, assignedToUserId, employeeOptionLabel, fullName, memberUserId, userRecordIds, type Priority, type TicketSlaSummary, type TicketStatus, type TicketUserRef, type User } from "@/lib/types";
 import type { UploadedFileRef } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
 
@@ -86,6 +91,9 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
   const [messageSort, setMessageSort] = useState<"asc" | "desc">("asc");
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [manageOpen, setManageOpen] = useState(true);
+  const [editingSubject, setEditingSubject] = useState(false);
+  const [subjectDraft, setSubjectDraft] = useState("");
+  const [subjectError, setSubjectError] = useState("");
 
   const ticketQuery = useQuery({
     queryKey: ["ticket", ticketId],
@@ -107,7 +115,7 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
   const activitiesQuery = useQuery({
     queryKey: ["ticket-activities", ticketId],
     queryFn: () => fetchTicketActivities(ticketId),
-    enabled: !!ticketQuery.data && activeTab === "activities",
+    enabled: !!ticketQuery.data && (activeTab === "activities" || activeTab === "history" || activeTab === "conversation"),
   });
 
   const categoriesQuery = useQuery({
@@ -120,6 +128,17 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
     queryKey: ["employees"],
     queryFn: fetchEmployees,
     enabled: mode === "admin",
+  });
+
+  const ticketProjectId =
+    typeof ticketQuery.data?.projectId === "string"
+      ? ticketQuery.data.projectId
+      : ticketQuery.data?.projectId?._id;
+
+  const membersQuery = useQuery({
+    queryKey: ["project-members", ticketProjectId],
+    queryFn: () => fetchProjectMembers(ticketProjectId!, { page: 1, limit: 100 }),
+    enabled: mode === "admin" && Boolean(ticketProjectId),
   });
 
   const slaPoliciesQuery = useQuery({
@@ -164,9 +183,10 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
   });
 
   const events = eventsQuery.data ?? [];
+  const activities = activitiesQuery.data ?? [];
   const historyEntries = useMemo(
-    () => mergeTicketHistory(events, ticketQuery.data?.sla),
-    [events, ticketQuery.data?.sla],
+    () => mergeTicketHistory(activities, events),
+    [activities, events],
   );
 
   const runUpdate = (payload: Parameters<typeof updateTicket>[1], description: string) => {
@@ -202,6 +222,35 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
   }
 
   const ticket = ticketQuery.data;
+  const canEditSubject = mode === "admin" && ticket.status !== "Cancelled";
+
+  function startEditSubject() {
+    setSubjectDraft(ticket.subject);
+    setSubjectError("");
+    setEditingSubject(true);
+  }
+
+  function cancelEditSubject() {
+    setEditingSubject(false);
+    setSubjectDraft(ticket.subject);
+    setSubjectError("");
+  }
+
+  function saveSubject() {
+    const result = subjectField.safeParse(subjectDraft);
+    if (!result.success) {
+      setSubjectError(result.error.issues[0]?.message || "Subject cannot be empty or contain only spaces.");
+      return;
+    }
+    if (result.data === ticket.subject) {
+      setEditingSubject(false);
+      return;
+    }
+    runUpdate({ subject: result.data }, "Subject updated");
+    setEditingSubject(false);
+    setSubjectError("");
+  }
+
   const clientId = getTicketUserId(ticket.clientId);
   const ticketCustomerId =
     typeof ticket.customerId === "string" ? ticket.customerId : ticket.customerId?._id ?? null;
@@ -226,9 +275,27 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
     const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     return messageSort === "asc" ? diff : -diff;
   });
-  const activities = activitiesQuery.data ?? [];
   const categories = categoriesQuery.data ?? [];
-  const employees = employeesQuery.data ?? [];
+  const employees: User[] = employeesQuery.data ?? [];
+  const assignedUserId = getTicketUserId(ticket.assignedTo);
+  const memberIds = new Set(
+    (membersQuery.data?.items ?? [])
+      .filter((member: { status?: string; employeeId: unknown }) => {
+        const status = (member.status || "Active").toLowerCase();
+        return status !== "inactive" && status !== "removed" && status !== "suspended";
+      })
+      .map((member: { employeeId: unknown; userId?: unknown }) => memberUserId(member))
+      .filter(Boolean),
+  );
+  const assignableEmployees = employees.filter((employee) => {
+    if (employee.status !== "Active") return false;
+    return userRecordIds(employee).some((id) => memberIds.has(id));
+  });
+  const currentAssignee = employees.find((employee) => userRecordIds(employee).includes(assignedUserId ?? ""));
+  const assigneeOptions =
+    currentAssignee && !assignableEmployees.some((employee) => userRecordIds(employee).includes(assignedUserId ?? ""))
+      ? [currentAssignee, ...assignableEmployees]
+      : assignableEmployees;
   const backTo = mode === "admin" ? "/admin/tickets" : "/portal/tickets";
   const slaDue = getTicketSlaDueAt(ticket);
   const slaPolicy = findSlaPolicyForPriority(slaPoliciesQuery.data, ticket.priority);
@@ -253,8 +320,66 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
             <span className="grid size-14 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm">
               <Ticket className="size-7" />
             </span>
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">{ticket.subject}</h1>
+            <div className="min-w-0 flex-1">
+              {editingSubject ? (
+                <div className="grid max-w-xl gap-1.5">
+                  <div className="flex items-start gap-2">
+                    <Input
+                      id="ticket-subject"
+                      value={subjectDraft}
+                      onChange={(event) => {
+                        const next = event.target.value;
+                        setSubjectDraft(next);
+                        if (next.trim().length > FIELD_LIMITS.SUBJECT_MAX) {
+                          setSubjectError(SUBJECT_MAX_MESSAGE);
+                          return;
+                        }
+                        setSubjectError("");
+                      }}
+                      onBlur={() => setSubjectDraft((current) => current.trim())}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          saveSubject();
+                        }
+                        if (event.key === "Escape") cancelEditSubject();
+                      }}
+                      aria-invalid={Boolean(subjectError)}
+                      className={fieldInputClass(subjectError)}
+                    />
+                    <Button type="button" size="sm" onClick={saveSubject} disabled={busy}>
+                      <Check className="size-4" />
+                      Save
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={cancelEditSubject} disabled={busy}>
+                      Cancel
+                    </Button>
+                  </div>
+                  {subjectError ? (
+                    <p role="alert" className="text-[0.8125rem] font-medium text-destructive">
+                      {subjectError}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Maximum {FIELD_LIMITS.SUBJECT_MAX} characters</p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex min-w-0 items-start gap-2">
+                  <h1 className="text-2xl font-bold tracking-tight text-foreground">{ticket.subject}</h1>
+                  {canEditSubject ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="mt-0.5 shrink-0"
+                      onClick={startEditSubject}
+                      aria-label="Edit subject"
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  ) : null}
+                </div>
+              )}
               <p className="mt-1 text-sm text-muted-foreground">
                 {ticket.number}
                 {getTicketProjectLabel(ticket) !== "—" ? ` · ${getTicketProjectLabel(ticket)}` : ""}
@@ -465,9 +590,6 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                         <SelectItem value="desc">Sort: Newest first</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button variant="outline" size="icon" className="size-9 rounded-md" aria-label="Filter messages">
-                      <ListFilter className="size-4" />
-                    </Button>
                   </div>
                 </div>
 
@@ -593,7 +715,7 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                 entries={historyEntries}
                 sla={ticket.sla}
                 slaTargets={slaTargets}
-                loading={eventsQuery.isLoading}
+                loading={activitiesQuery.isLoading || eventsQuery.isLoading}
               />
             </>
           )}
@@ -603,7 +725,7 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
               entries={historyEntries}
               sla={ticket.sla}
               slaTargets={slaTargets}
-              loading={eventsQuery.isLoading}
+                loading={activitiesQuery.isLoading || eventsQuery.isLoading}
             />
           )}
 
@@ -821,23 +943,39 @@ export function TicketWorkspace({ ticketId, mode }: { ticketId: string; mode: "a
                         value={getTicketUserId(ticket.assignedTo) ?? "unassigned"}
                         onValueChange={(v) => {
                           const next = v === "unassigned" ? null : v;
+                          const selected = next
+                            ? employees.find((e) => userRecordIds(e).includes(next))
+                            : undefined;
                           const name = next
-                            ? getTicketUserLabel(employees.find((e) => (e.id ?? e._id) === next) ?? next)
+                            ? selected
+                              ? employeeOptionLabel(selected)
+                              : getTicketUserLabel(next)
                             : "Unassigned";
                           runUpdate({ assignedTo: next }, `Assigned to ${name}`);
                         }}
                         disabled={busy}
                       >
                         <SelectTrigger className="rounded-md">
-                          <SelectValue>{agent ? fullName(agent) : "Unassigned"}</SelectValue>
+                          <SelectValue>
+                            {agent
+                              ? employeeOptionLabel(
+                                  employees.find((e) =>
+                                    userRecordIds(e).includes(getTicketUserId(ticket.assignedTo) ?? ""),
+                                  ) ?? agent,
+                                )
+                              : "Unassigned"}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="unassigned">Unassigned</SelectItem>
-                          {employees.map((u) => (
-                            <SelectItem key={u.id ?? u._id} value={u.id ?? u._id ?? ""}>
-                              {fullName(u)}
-                            </SelectItem>
-                          ))}
+                          {assigneeOptions.map((u) => {
+                            const id = assignedToUserId(u, memberIds) || u._id || u.id || "";
+                            return (
+                              <SelectItem key={id} value={id}>
+                                {employeeOptionLabel(u)}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </ManageField>
@@ -943,8 +1081,9 @@ function TicketHistorySection({
           icon={Clock}
         />
       ) : (
+        <div className="max-h-80 overflow-y-auto overscroll-contain">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow className="hover:bg-transparent">
               <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">Date & time</TableHead>
               <TableHead className="text-xs uppercase tracking-wide text-muted-foreground">Type</TableHead>
@@ -964,7 +1103,7 @@ function TicketHistorySection({
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="rounded-full text-[11px] font-semibold">
-                      Update
+                      {entry.type}
                     </Badge>
                   )}
                 </TableCell>
@@ -980,6 +1119,7 @@ function TicketHistorySection({
             ))}
           </TableBody>
         </Table>
+        </div>
       )}
     </WorkspaceCard>
   );

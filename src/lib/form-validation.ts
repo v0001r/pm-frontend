@@ -22,6 +22,9 @@ export const EMAIL_INVALID_MESSAGE = "Please enter a valid email address.";
 export const CUSTOMER_EMAIL_DUPLICATE_MESSAGE = "Email ID already exists.";
 export const WEBSITE_INVALID_MESSAGE = "Please enter a valid website URL.";
 export const NAME_MAX_MESSAGE = "Maximum 75 characters are allowed.";
+export const SUBJECT_EMPTY_MESSAGE = "Subject cannot be empty or contain only spaces.";
+export const SUBJECT_CONSECUTIVE_SPACES_MESSAGE = "Consecutive spaces are not allowed.";
+export const SUBJECT_MAX_MESSAGE = "Subject must not exceed the maximum allowed characters.";
 export const WHITESPACE_INVALID_MESSAGE =
   "Please enter a valid value. Empty or consecutive spaces are not allowed.";
 export const CONSECUTIVE_SPACES_MESSAGE = WHITESPACE_INVALID_MESSAGE;
@@ -334,9 +337,15 @@ function contactMobileField() {
 
 export const subjectField = z
   .string()
-  .trim()
-  .min(FIELD_LIMITS.SUBJECT_MIN, "Subject must be at least 3 characters")
-  .max(FIELD_LIMITS.SUBJECT_MAX, "Subject cannot exceed 250 characters");
+  .refine((value) => value.trim().length > 0, { message: SUBJECT_EMPTY_MESSAGE })
+  .refine((value) => !/\s{2,}/.test(value.trim()), { message: SUBJECT_CONSECUTIVE_SPACES_MESSAGE })
+  .transform((value) => value.trim())
+  .pipe(
+    z
+      .string()
+      .min(FIELD_LIMITS.SUBJECT_MIN, "Subject must be at least 3 characters")
+      .max(FIELD_LIMITS.SUBJECT_MAX, SUBJECT_MAX_MESSAGE),
+  );
 
 export const customerCreateSchema = z.object({
   companyName: companyNameField,

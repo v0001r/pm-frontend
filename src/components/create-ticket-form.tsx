@@ -11,14 +11,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getApiErrorMessage } from "@/lib/api";
-import { createTicketSchema, FIELD_LIMITS, validateForm } from "@/lib/form-validation";
+import { createTicketSchema, FIELD_LIMITS, SUBJECT_MAX_MESSAGE, validateForm } from "@/lib/form-validation";
 import { useAuth } from "@/lib/auth";
-import { fetchCategories } from "@/lib/categories";
-import { fetchProjects } from "@/lib/projects";
+import { fetchCategories, categoryId as getCategoryId } from "@/lib/categories";
+import { fetchProjectMembers, fetchProjects } from "@/lib/projects";
 import { createTicket } from "@/lib/tickets";
 import { fetchEmployees } from "@/lib/users";
 import type { UploadedFileRef } from "@/lib/uploads";
-import { PRIORITIES, SETTABLE_STATUSES, fullName, type Priority, type TicketStatus } from "@/lib/types";
+import { PRIORITIES, SETTABLE_STATUSES, TICKET_ELIGIBLE_PROJECT_STATUSES, assignedToUserId, employeeOptionLabel, memberUserId, userRecordIds, type Category, type Priority, type Project, type ProjectMember, type TicketStatus, type User } from "@/lib/types";
+
+function projectIdOf(project: { _id?: string; id?: string }) {
+  return project._id || project.id || "";
+}
+
+function isActiveProjectMember(member: ProjectMember) {
+  const status = (member.status || "Active").toLowerCase();
+  return status !== "inactive" && status !== "removed" && status !== "suspended";
+}
 
 interface CreateTicketFormProps {
   initialProjectId?: string;
@@ -51,6 +60,7 @@ export function CreateTicketForm({
   const [assignedTo, setAssignedTo] = useState("");
   const [files, setFiles] = useState<UploadedFileRef[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const assignedUserId = assignedTo && assignedTo !== "unassigned" ? assignedTo : "";
 
   const projectsQuery = useQuery({
     queryKey: ["projects", { createTicket: true, role: user?.role, unscoped: isStaffOrAdmin }],
@@ -76,27 +86,63 @@ export function CreateTicketForm({
     enabled: isStaffOrAdmin,
   });
 
-  const projects = projectsQuery.data?.items ?? [];
+  const membersQuery = useQuery({
+    queryKey: ["project-members", projectId],
+    queryFn: () => fetchProjectMembers(projectId, { page: 1, limit: 100 }),
+    enabled: isStaffOrAdmin && Boolean(projectId),
+  });
+
+  const projects = (projectsQuery.data?.items ?? []).filter((project: Project) =>
+    TICKET_ELIGIBLE_PROJECT_STATUSES.includes(project.status),
+  );
   const categories = categoriesQuery.data ?? [];
-  const employees = employeesQuery.data ?? [];
+  const employees = (employeesQuery.data ?? []).filter(
+    (employee: User) => userRecordIds(employee).length > 0 && employee.status === "Active",
+  );
+  const memberIds = new Set(
+    (membersQuery.data?.items ?? [])
+      .filter((member: ProjectMember) => isActiveProjectMember(member))
+      .map((member: ProjectMember) => memberUserId(member))
+      .filter(Boolean),
+  );
+  const assignees = employees.filter((employee: User) =>
+    userRecordIds(employee).some((id) => memberIds.has(id)),
+  );
+  const selectedProject = projects.find((project: Project) => projectIdOf(project) === projectId);
 
   useEffect(() => {
-    if (!projectId && projects[0]) {
-      setProjectId(projects[0]._id);
+    if (projectsQuery.isLoading) return;
+
+    if (initialProjectId && projects.some((project: Project) => projectIdOf(project) === initialProjectId)) {
+      setProjectId(initialProjectId);
+      return;
     }
-  }, [projects, projectId]);
+
+    if (projectId && !projects.some((project: Project) => projectIdOf(project) === projectId)) {
+      setProjectId(projects[0] ? projectIdOf(projects[0]) : "");
+      return;
+    }
+
+    if (!projectId && projects[0]) {
+      const firstId = projectIdOf(projects[0]);
+      if (firstId) setProjectId(firstId);
+    }
+  }, [projects, projectId, initialProjectId, projectsQuery.isLoading]);
 
   useEffect(() => {
     if (!categoryId && categories[0]) {
-      setCategoryId(categories[0]._id);
+      const firstId = getCategoryId(categories[0]);
+      if (firstId) setCategoryId(firstId);
     }
   }, [categories, categoryId]);
 
   useEffect(() => {
-    if (initialProjectId) {
-      setProjectId(initialProjectId);
+    if (!assignedUserId) return;
+    if (membersQuery.isLoading || employeesQuery.isLoading) return;
+    if (!assignees.some((employee: User) => assignedToUserId(employee, memberIds) === assignedUserId)) {
+      setAssignedTo("");
     }
-  }, [initialProjectId]);
+  }, [assignedUserId, assignees, memberIds, membersQuery.isLoading, employeesQuery.isLoading]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -111,8 +157,8 @@ export function CreateTicketForm({
         projectId,
         categoryId,
         priority,
-        ...(isStaffOrAdmin && !(assignedTo && status === "New") ? { status } : {}),
-        ...(isStaffOrAdmin && assignedTo ? { assignedTo } : {}),
+        ...(isStaffOrAdmin && !(assignedUserId && status === "New") ? { status } : {}),
+        ...(isStaffOrAdmin && assignedUserId ? { assignedTo: assignedUserId } : {}),
         ...(files.length > 0 ? { attachments: files } : {}),
       });
     },
@@ -139,7 +185,9 @@ export function CreateTicketForm({
   }
 
   const loading =
-    projectsQuery.isLoading || categoriesQuery.isLoading || (isStaffOrAdmin && employeesQuery.isLoading);
+    projectsQuery.isLoading ||
+    categoriesQuery.isLoading ||
+    (isStaffOrAdmin && (employeesQuery.isLoading || (Boolean(projectId) && membersQuery.isLoading)));
 
   const form = (
     <form
@@ -157,20 +205,32 @@ export function CreateTicketForm({
               setErrors(validation.errors);
               return;
             }
+            setSubject(validation.data.subject);
             setErrors({});
             mutation.mutate();
           }}
         >
-          <FormField label="Subject" htmlFor="subject" error={errors["subject"]} required>
+          <FormField
+            label="Subject"
+            htmlFor="subject"
+            error={errors["subject"]}
+            hint={`Maximum ${FIELD_LIMITS.SUBJECT_MAX} characters`}
+            required
+          >
             <Input
               id="subject"
               value={subject}
               onChange={(event) => {
-                setSubject(event.target.value);
+                const next = event.target.value;
+                setSubject(next);
+                if (next.trim().length > FIELD_LIMITS.SUBJECT_MAX) {
+                  setErrors((current) => ({ ...current, subject: SUBJECT_MAX_MESSAGE }));
+                  return;
+                }
                 clearError("subject");
               }}
-              placeholder="Short summary of the issue"
-              maxLength={FIELD_LIMITS.SUBJECT_MAX}
+              onBlur={() => setSubject((current) => current.trim())}
+              placeholder="Enter Subject"
               className={fieldInputClass(errors["subject"])}
             />
           </FormField>
@@ -179,21 +239,29 @@ export function CreateTicketForm({
             <div className="grid gap-1.5">
               <Label>Assign to</Label>
               <Select
-                value={assignedTo || "unassigned"}
-                onValueChange={(value) => setAssignedTo(value === "unassigned" ? "" : value)}
+                {...(assignedTo ? { value: assignedTo } : {})}
+                onValueChange={setAssignedTo}
                 disabled={loading}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={loading ? "Loading users..." : "Select assignee"} />
+                  <SelectValue placeholder={loading ? "Loading users..." : "Select Assignee"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {fullName(employee)}
-                      {employee.designation ? ` · ${employee.designation}` : ""}
-                    </SelectItem>
-                  ))}
+                  {assignees.length === 0 ? (
+                    <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                      No active project members to assign
+                    </div>
+                  ) : (
+                    assignees.map((employee: User) => {
+                      const id = assignedToUserId(employee, memberIds);
+                      return (
+                        <SelectItem key={id} value={id}>
+                          {employeeOptionLabel(employee)}
+                        </SelectItem>
+                      );
+                    })
+                  )}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
@@ -205,15 +273,16 @@ export function CreateTicketForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Project" error={errors["projectId"]} required>
               <Select
-                value={projectId}
+                {...(projectId ? { value: projectId } : {})}
                 onValueChange={(value) => {
                   setProjectId(value);
+                  setAssignedTo("");
                   clearError("projectId");
                 }}
                 disabled={loading || projects.length === 0}
               >
                 <SelectTrigger className={fieldInputClass(errors["projectId"])}>
-                  <SelectValue placeholder={loading ? "Loading projects..." : "Select project"} />
+                  <SelectValue placeholder={loading ? "Loading projects..." : "Select Project"} />
                 </SelectTrigger>
                 <SelectContent>
                   {projects.length === 0 ? (
@@ -221,11 +290,16 @@ export function CreateTicketForm({
                       No projects available for your account
                     </div>
                   ) : (
-                    projects.map((project) => (
-                      <SelectItem key={project._id} value={project._id}>
-                        {project.name} · {project.projectId}
-                      </SelectItem>
-                    ))
+                    projects.map((project: Project) => {
+                      const id = projectIdOf(project);
+                      if (!id) return null;
+                      return (
+                        <SelectItem key={id} value={id}>
+                          {project.name || "Untitled project"}
+                          {project.projectId ? ` · ${project.projectId}` : ""}
+                        </SelectItem>
+                      );
+                    })
                   )}
                 </SelectContent>
               </Select>
@@ -233,7 +307,7 @@ export function CreateTicketForm({
 
             <FormField label="Category" error={errors["categoryId"]} required>
               <Select
-                value={categoryId}
+                {...(categoryId ? { value: categoryId } : {})}
                 onValueChange={(value) => {
                   setCategoryId(value);
                   clearError("categoryId");
@@ -241,25 +315,39 @@ export function CreateTicketForm({
                 disabled={loading || categories.length === 0}
               >
                 <SelectTrigger className={fieldInputClass(errors["categoryId"])}>
-                  <SelectValue placeholder={loading ? "Loading categories..." : "Select category"} />
+                  <SelectValue placeholder={loading ? "Loading categories..." : "Select Category"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category._id} value={category._id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
+                  {categories.map((category: Category) => {
+                    const id = getCategoryId(category);
+                    if (!id) return null;
+                    return (
+                      <SelectItem key={id} value={id}>
+                        {category.name}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </FormField>
           </div>
+
+          {selectedProject ? (
+            <FormField label="Customer">
+              <Input
+                value={selectedProject.customerName || "—"}
+                readOnly
+                disabled
+              />
+            </FormField>
+          ) : null}
 
           <div className={`grid gap-4 ${isStaffOrAdmin ? "sm:grid-cols-2" : ""}`}>
             <div className="grid gap-1.5">
               <Label>Priority</Label>
               <Select value={priority} onValueChange={(value) => setPriority(value as Priority)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select Priority" />
                 </SelectTrigger>
                 <SelectContent>
                   {PRIORITIES.map((value) => (
@@ -276,7 +364,7 @@ export function CreateTicketForm({
                 <Label>Status</Label>
                 <Select value={status} onValueChange={(value) => setStatus(value as TicketStatus)}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select Status" />
                   </SelectTrigger>
                   <SelectContent>
                     {SETTABLE_STATUSES.map((value) => (
@@ -306,7 +394,7 @@ export function CreateTicketForm({
               }}
               rows={8}
               maxLength={4000}
-              placeholder="Steps to reproduce, what you expected and what happened instead."
+              placeholder="Enter Description"
               className={fieldInputClass(errors["description"])}
             />
           </FormField>
@@ -316,6 +404,7 @@ export function CreateTicketForm({
             files={files}
             onChange={setFiles}
             label="Attachments"
+            placeholder="Upload Attachments"
             hint="Max 5 files, 10MB each"
           />
 

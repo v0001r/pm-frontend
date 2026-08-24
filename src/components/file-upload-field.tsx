@@ -21,6 +21,7 @@ interface FileUploadFieldProps {
   accept?: string;
   label?: ReactNode;
   hint?: string;
+  placeholder?: string;
   className?: string;
   variant?: "dropzone" | "button";
   hideFileList?: boolean;
@@ -35,6 +36,7 @@ export function FileUploadField({
   accept,
   label,
   hint = "Max 5 files, 10MB each",
+  placeholder = "Attach screenshots or documents",
   className,
   variant = "dropzone",
   hideFileList = false,
@@ -97,7 +99,7 @@ export function FileUploadField({
       ) : (
         <label className="flex cursor-pointer items-center gap-2 rounded-sm border border-dashed px-3 py-4 text-sm text-muted-foreground hover:bg-accent/50">
           {uploading ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
-          {uploading ? "Uploading…" : "Attach screenshots or documents"}
+          {uploading ? "Uploading…" : placeholder}
           <span className="text-xs">({hint})</span>
           <input
             ref={inputRef}

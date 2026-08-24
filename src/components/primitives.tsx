@@ -115,11 +115,10 @@ const projectStatusStyles: Record<ProjectStatus, string> = {
 };
 
 export function ProjectStatusBadge({ status, className }: { status: ProjectStatus; className?: string }) {
-  const label = status === "Open" ? "In Progress" : status;
   return (
     <span className={cn(badgeBase, projectStatusStyles[status], className)}>
       <span className="size-1.5 rounded-full bg-current" aria-hidden />
-      {label}
+      {status}
     </span>
   );
 }

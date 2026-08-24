@@ -20,6 +20,7 @@ export function TicketFormSheet({ open, onOpenChange, initialProjectId, onSaved 
       description="Log a support request for any project."
     >
       <CreateTicketForm
+        key={open ? `open-${initialProjectId ?? "new"}` : "closed"}
         embedded
         initialProjectId={initialProjectId}
         onCancel={() => onOpenChange(false)}

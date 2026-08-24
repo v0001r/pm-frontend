@@ -239,11 +239,16 @@ export interface ProjectQueryParams {
   status?: ProjectStatus;
   sortBy?: "name" | "startDate" | "endDate" | "createdAt";
   sortOrder?: "asc" | "desc";
+  startDateFrom?: string;
+  startDateTo?: string;
+  endDateFrom?: string;
+  endDateTo?: string;
   unscoped?: boolean;
 }
 
 export interface Category {
   _id: string;
+  id?: string;
   name: string;
   description?: string;
   active: boolean;
@@ -540,6 +545,7 @@ export const SETTABLE_STATUSES = STATUSES.filter((status) => status !== "Assigne
 export const PRIORITIES: Priority[] = ["P1", "P2", "P3", "P4"];
 
 export const PROJECT_STATUSES: ProjectStatus[] = ["Open", "On Hold", "Completed", "Cancelled"];
+export const TICKET_ELIGIBLE_PROJECT_STATUSES: ProjectStatus[] = ["Open", "On Hold"];
 
 export const SLA_MATRIX: Record<string, { response: string; resolution: string }> = {
   P1: { response: "15 minutes", resolution: "4 hours" },
@@ -555,6 +561,43 @@ export const SLA_MATRIX: Record<string, { response: string; resolution: string }
 export function fullName(u: { name?: string; firstName?: string; lastName?: string }) {
   if (u.name) return u.name;
   return `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim();
+}
+
+export function employeeOptionLabel(employee: {
+  employeeId?: string;
+  email?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  designation?: string;
+}) {
+  const name = fullName(employee) || employee.email || "Employee";
+  const identifier = employee.employeeId || employee.email;
+  return identifier ? `${name} - ${identifier}` : name;
+}
+
+export function userRecordIds(user: { id?: string; _id?: string }) {
+  return [...new Set([user._id, user.id].filter(Boolean))] as string[];
+}
+
+export function extractRecordId(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    const record = value as { _id?: string; id?: string };
+    return record._id || record.id || "";
+  }
+  return "";
+}
+
+export function memberUserId(member: { employeeId?: unknown; userId?: unknown }) {
+  return extractRecordId(member.employeeId) || extractRecordId(member.userId);
+}
+
+export function assignedToUserId(user: { id?: string; _id?: string }, allowedMemberIds: Set<string>) {
+  if (user._id && allowedMemberIds.has(user._id)) return user._id;
+  if (user.id && allowedMemberIds.has(user.id)) return user.id;
+  return user._id || user.id || "";
 }
 
 export function initials(name: string) {

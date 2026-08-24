@@ -105,23 +105,31 @@ function PanelCard({
   actions,
   children,
   className,
+  scrollable,
 }: {
   title: string;
   description?: string;
   actions?: React.ReactNode;
   children: ReactNode;
   className?: string;
+  scrollable?: boolean;
 }) {
   return (
-    <section className={cn("overflow-hidden rounded-md border border-border/60 bg-card shadow-sm", className)}>
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 px-5 py-4">
+    <section
+      className={cn(
+        "overflow-hidden rounded-md border border-border/60 bg-card shadow-sm",
+        scrollable && "flex max-h-[min(24rem,50vh)] flex-col",
+        className,
+      )}
+    >
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border/60 px-5 py-4">
         <div>
           <h2 className="text-base font-semibold text-foreground">{title}</h2>
           {description ? <p className="mt-0.5 text-sm text-muted-foreground">{description}</p> : null}
         </div>
         {actions}
       </div>
-      {children}
+      {scrollable ? <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div> : children}
     </section>
   );
 }
@@ -234,7 +242,10 @@ export function ProjectOverview({
     () => members.reduce((sum, member) => sum + member.internalHours + member.externalHours, 0),
     [members],
   );
-  const assignedEmployeeIds = useMemo(() => members.map((member) => member.employeeId), [members]);
+  const assignedEmployeeIds = useMemo(
+    () => [...new Set(members.map((member) => member.employeeId).filter(Boolean))],
+    [members],
+  );
 
   if (projectQuery.isLoading) {
     return <TableSkeleton rows={10} cols={4} />;
@@ -444,7 +455,7 @@ export function ProjectOverview({
           }
         >
           {membersQuery.isLoading ? (
-            <TableSkeleton rows={4} cols={5} />
+            <TableSkeleton rows={4} cols={6} />
           ) : members.length === 0 ? (
             <EmptyState
               icon={Users}
@@ -463,7 +474,7 @@ export function ProjectOverview({
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  {["Member", "Status", "Hours", "Assigned On", ...(isAdmin ? [""] : [])].map((heading) => (
+                  {["Member", "Status", "Internal Hours", "External Hours", "Assigned On", ...(isAdmin ? [""] : [])].map((heading) => (
                     <TableHead key={heading || "actions"}>{heading}</TableHead>
                   ))}
                 </TableRow>
@@ -478,7 +489,10 @@ export function ProjectOverview({
                       <StatusBadge status={member.status} />
                     </TableCell>
                     <TableCell className="tabular text-muted-foreground">
-                      {member.internalHours + member.externalHours}h
+                      {member.internalHours}h
+                    </TableCell>
+                    <TableCell className="tabular text-muted-foreground">
+                      {member.externalHours}h
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {member.assignedDate ? formatDate(member.assignedDate) : "—"}
@@ -504,7 +518,7 @@ export function ProjectOverview({
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <PanelCard title="Activity Timeline" description="Recent changes on this project">
+        <PanelCard title="Activity Timeline" description="Recent changes on this project" scrollable>
           {activitiesQuery.isLoading ? (
             <TableSkeleton rows={5} cols={2} />
           ) : activities.length === 0 ? (
@@ -533,7 +547,7 @@ export function ProjectOverview({
           )}
         </PanelCard>
 
-        <PanelCard title="Ticket Summary" description="Status breakdown for this project">
+        <PanelCard title="Ticket Summary" description="Status breakdown for this project" scrollable>
           {ticketsQuery.isLoading ? (
             <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">Loading tickets…</div>
           ) : ticketTotal === 0 ? (

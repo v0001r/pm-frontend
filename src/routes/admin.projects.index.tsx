@@ -30,6 +30,7 @@ import {
 import { EmptyState, ProjectStatusBadge, TableSkeleton } from "@/components/primitives";
 import { ProjectFormSheet } from "@/components/project-form-sheet";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useAuth, isAdmin, isStaff } from "@/lib/auth";
 import { deleteProject, fetchProjects } from "@/lib/projects";
@@ -81,7 +82,14 @@ const SORT_OPTIONS = [
   { value: "end", label: "End date", sortBy: "endDate" as const, sortOrder: "asc" as const },
 ];
 
-const FILTER_DEFAULTS = { status: ANY, sort: "updated" };
+const FILTER_DEFAULTS = {
+  status: ANY,
+  sort: "updated",
+  startDateFrom: "",
+  startDateTo: "",
+  endDateFrom: "",
+  endDateTo: "",
+};
 
 const TABLE_COLUMNS = [
   "Project ID",
@@ -130,9 +138,30 @@ function ProjectsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQ, filters.status, filters.sort, limit]);
+  }, [
+    debouncedQ,
+    filters.status,
+    filters.sort,
+    filters.startDateFrom,
+    filters.startDateTo,
+    filters.endDateFrom,
+    filters.endDateTo,
+    limit,
+  ]);
 
   const sortConfig = SORT_OPTIONS.find((option) => option.value === filters.sort) ?? SORT_OPTIONS[0]!;
+
+  function applyFilters() {
+    if (draft.startDateFrom && draft.startDateTo && draft.startDateFrom > draft.startDateTo) {
+      toast.error("startDateFrom cannot be after startDateTo.");
+      return;
+    }
+    if (draft.endDateFrom && draft.endDateTo && draft.endDateFrom > draft.endDateTo) {
+      toast.error("endDateFrom cannot be after endDateTo.");
+      return;
+    }
+    apply();
+  }
 
   const queryParams = useMemo(
     () => ({
@@ -142,8 +171,12 @@ function ProjectsPage() {
       ...(filters.status !== ANY && { status: filters.status as ProjectStatus }),
       sortBy: sortConfig.sortBy,
       sortOrder: sortConfig.sortOrder,
+      ...(filters.startDateFrom && { startDateFrom: filters.startDateFrom }),
+      ...(filters.startDateTo && { startDateTo: filters.startDateTo }),
+      ...(filters.endDateFrom && { endDateFrom: filters.endDateFrom }),
+      ...(filters.endDateTo && { endDateTo: filters.endDateTo }),
     }),
-    [page, limit, debouncedQ, filters.status, sortConfig],
+    [page, limit, debouncedQ, filters, sortConfig],
   );
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
@@ -179,7 +212,11 @@ function ProjectsPage() {
     setPage(1);
   };
 
-  const hasFilters = debouncedQ || filters.status !== ANY || filters.sort !== "updated";
+  const hasFilters =
+    debouncedQ ||
+    filters.status !== ANY ||
+    filters.sort !== "updated" ||
+    Boolean(filters.startDateFrom || filters.startDateTo || filters.endDateFrom || filters.endDateTo);
 
   return (
     <>
@@ -193,7 +230,7 @@ function ProjectsPage() {
           filterOpen={open}
           onFilterOpenChange={setOpen}
           activeFilterCount={activeCount}
-          onFilterApply={apply}
+          onFilterApply={applyFilters}
           onFilterClear={clearFilters}
           primaryAction={
             canManage ? (
@@ -223,6 +260,38 @@ function ProjectsPage() {
                     option.value,
                     option.label,
                   ])}
+                />
+              </ListingFilterField>
+              <ListingFilterField label="Start date from">
+                <Input
+                  type="date"
+                  value={draft.startDateFrom}
+                  onChange={(event) => patchDraft({ startDateFrom: event.target.value })}
+                  className="h-9"
+                />
+              </ListingFilterField>
+              <ListingFilterField label="Start date to">
+                <Input
+                  type="date"
+                  value={draft.startDateTo}
+                  onChange={(event) => patchDraft({ startDateTo: event.target.value })}
+                  className="h-9"
+                />
+              </ListingFilterField>
+              <ListingFilterField label="End date from">
+                <Input
+                  type="date"
+                  value={draft.endDateFrom}
+                  onChange={(event) => patchDraft({ endDateFrom: event.target.value })}
+                  className="h-9"
+                />
+              </ListingFilterField>
+              <ListingFilterField label="End date to">
+                <Input
+                  type="date"
+                  value={draft.endDateTo}
+                  onChange={(event) => patchDraft({ endDateTo: event.target.value })}
+                  className="h-9"
                 />
               </ListingFilterField>
             </>
